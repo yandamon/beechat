@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>小蜜蜂</title>
+    <script>
+      // 首屏前根据已保存的主题加上 dark 类，避免闪一下浅色
+      try {
+        const saved = JSON.parse(localStorage.getItem('beechat-theme') ?? 'null');
+        const theme = saved?.state?.theme ?? 'system';
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (theme === 'dark' || (theme === 'system' && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch {
+        /* 无法访问 localStorage 时保持浅色 */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
