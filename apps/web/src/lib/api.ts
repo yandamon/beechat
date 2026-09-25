@@ -34,9 +34,10 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 }
 
 export interface Health {
-  status: 'ok';
+  status: 'ok' | 'degraded';
   name: string;
   env: string;
+  db: 'ok' | 'error';
   time: string;
 }
 

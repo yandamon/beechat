@@ -23,7 +23,17 @@ packages/shared  前后端共享的 zod schema、类型、事件名、常量
 
 ## 本地开发
 
-前置条件：Node 24、pnpm 12、PostgreSQL 17（数据库在后续步骤接入，骨架阶段暂不需要）。
+前置条件：Node 24、pnpm 12、PostgreSQL 17。
+
+首次使用先以 postgres 超级用户创建角色和数据库，只需执行一次：
+
+```sql
+CREATE ROLE beechat LOGIN PASSWORD 'beechat_dev';
+CREATE DATABASE beechat_dev OWNER beechat;
+CREATE DATABASE beechat_test OWNER beechat;
+```
+
+然后安装依赖、准备环境变量并启动：
 
 ```bash
 pnpm install
@@ -31,19 +41,23 @@ cp apps/server/.env.example apps/server/.env
 pnpm dev
 ```
 
+服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。
+
 `pnpm dev` 会同时启动前端（http://localhost:5173）和后端（http://localhost:3000）。前端开发服务器把 `/api` 与 `/socket.io` 代理到后端，因此浏览器始终同源访问。
 
 常用命令：
 
-| 命令             | 作用                                   |
-| ---------------- | -------------------------------------- |
-| `pnpm dev`       | 同时启动前后端开发服务器               |
-| `pnpm typecheck` | 全部包的 TypeScript 检查               |
-| `pnpm lint`      | ESLint                                 |
-| `pnpm format`    | Prettier 格式化                        |
-| `pnpm test`      | Vitest                                 |
-| `pnpm build`     | 构建前端产物和后端产物                 |
-| `pnpm start`     | 以生产模式启动后端，并托管已构建的前端 |
+| 命令                                        | 作用                                   |
+| ------------------------------------------- | -------------------------------------- |
+| `pnpm dev`                                  | 同时启动前后端开发服务器               |
+| `pnpm typecheck`                            | 全部包的 TypeScript 检查               |
+| `pnpm lint`                                 | ESLint                                 |
+| `pnpm format`                               | Prettier 格式化                        |
+| `pnpm test`                                 | Vitest                                 |
+| `pnpm build`                                | 构建前端产物和后端产物                 |
+| `pnpm start`                                | 以生产模式启动后端，并托管已构建的前端 |
+| `pnpm --filter @beechat/server db:generate` | 根据 schema 变更生成迁移文件           |
+| `pnpm --filter @beechat/server db:studio`   | 打开 Drizzle Studio 查看数据           |
 
 ## 生产运行
 

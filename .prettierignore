@@ -2,3 +2,5 @@ node_modules
 dist
 pnpm-lock.yaml
 coverage
+# drizzle-kit 生成的快照，不要手动格式化
+**/drizzle/meta

@@ -8,6 +8,7 @@ export const t = {
   status: {
     title: '系统状态',
     server: '服务器',
+    database: '数据库',
     realtime: '实时连接',
     checking: '检查中',
     ok: '正常',
@@ -22,5 +23,5 @@ export const t = {
     system: '跟随系统',
     toggle: '切换主题',
   },
-  footer: '骨架已就绪。下一步：账号系统与数据库。',
+  footer: '骨架与数据库已就绪。下一步：账号系统。',
 } as const;

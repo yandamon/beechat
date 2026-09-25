@@ -14,6 +14,12 @@ export function HomePage() {
       ? t.status.error
       : t.status.ok;
 
+  const databaseLabel = health.isPending
+    ? t.status.checking
+    : health.data?.db === 'ok'
+      ? t.status.ok
+      : t.status.error;
+
   return (
     <section className="space-y-6">
       <div>
@@ -23,6 +29,7 @@ export function HomePage() {
 
       <dl className="divide-y divide-border rounded-xl border border-border">
         <StatusRow label={t.status.server} value={serverLabel} ok={health.isSuccess} />
+        <StatusRow label={t.status.database} value={databaseLabel} ok={health.data?.db === 'ok'} />
         <StatusRow label={t.status.realtime} value={t.status[status]} ok={status === 'online'} />
       </dl>
 

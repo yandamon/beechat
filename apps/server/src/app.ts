@@ -2,8 +2,16 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
+import { sql } from 'drizzle-orm';
 import Fastify from 'fastify';
 import { config } from './config';
+import type { Db } from './db/client';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    db: Db;
+  }
+}
 
 // 无论从 src/（tsx）还是 dist/（构建产物）运行，前端产物都在 ../../web/dist
 const WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
@@ -16,15 +24,30 @@ function loggerOptions() {
   return { level: config.LOG_LEVEL };
 }
 
-export async function buildApp() {
-  const app = Fastify({ logger: loggerOptions() });
+export interface BuildAppOptions {
+  db: Db;
+}
 
-  app.get('/api/health', async () => ({
-    status: 'ok',
-    name: 'beechat',
-    env: config.NODE_ENV,
-    time: new Date().toISOString(),
-  }));
+export async function buildApp({ db }: BuildAppOptions) {
+  const app = Fastify({ logger: loggerOptions() });
+  app.decorate('db', db);
+
+  app.get('/api/health', async (_request, reply) => {
+    let dbStatus: 'ok' | 'error' = 'ok';
+    try {
+      await db.execute(sql`select 1`);
+    } catch (error) {
+      app.log.error(error, 'database health check failed');
+      dbStatus = 'error';
+    }
+    return reply.code(dbStatus === 'ok' ? 200 : 503).send({
+      status: dbStatus === 'ok' ? 'ok' : 'degraded',
+      name: 'beechat',
+      env: config.NODE_ENV,
+      db: dbStatus,
+      time: new Date().toISOString(),
+    });
+  });
 
   // 生产环境由同一个服务托管前端静态文件，保证同源
   if (config.NODE_ENV === 'production' && existsSync(WEB_DIST)) {
