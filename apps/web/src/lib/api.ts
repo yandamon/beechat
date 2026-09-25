@@ -9,6 +9,7 @@ import type {
   FriendView,
   LoginInput,
   MessagePage,
+  MessageView,
   PresignUploadInput,
   PresignedUpload,
   RegisterInput,
@@ -137,6 +138,10 @@ export const chatApi = {
     api<{ conversation: ConversationView }>(`/api/conversations/${id}/members`, {
       method: 'POST',
       body,
+    }),
+  recall: (id: number, messageId: number) =>
+    api<{ message: MessageView }>(`/api/conversations/${id}/messages/${messageId}/recall`, {
+      method: 'POST',
     }),
   removeMember: (id: number, userId: number) =>
     api<{ ok: true }>(`/api/conversations/${id}/members/${userId}`, { method: 'DELETE' }),

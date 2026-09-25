@@ -8,16 +8,20 @@ import type {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { t } from '@/i18n/zh-CN';
 import { socket } from '@/lib/socket';
 import {
   appendMessage,
   applyMessageToConversations,
+  applyPeerRead,
   markConversationRead,
   queryKeys,
   removeConversation,
+  replaceMessage,
   setUserOnline,
   upsertConversation,
 } from './cache';
+import { notifyNewMessage } from './notifications';
 import { useActiveConversationStore, useTypingStore } from './stores';
 
 /** 把服务端推送的事件落到查询缓存和本地状态里；登录后挂一次即可 */
@@ -28,21 +32,38 @@ export function useRealtimeSync(meId: number) {
   useEffect(() => {
     const onMessage = (message: MessageView) => {
       const active = useActiveConversationStore.getState().conversationId;
-      const isActive = active === message.conversationId && document.visibilityState === 'visible';
+      const visible = document.visibilityState === 'visible';
+      const isActive = active === message.conversationId && visible;
       appendMessage(queryClient, message);
       applyMessageToConversations(queryClient, message, { meId, isActive });
       if (message.senderId !== null && message.senderId !== meId) {
         useTypingStore.getState().clear(message.conversationId, message.senderId);
       }
+      if (message.senderId === meId || message.senderId === null) return;
+
       // 正开着这个会话且页面可见，直接上报已读
-      if (isActive && message.senderId !== meId) {
+      if (isActive) {
         socket.emit('conversation:read', {
           conversationId: message.conversationId,
           messageId: message.id,
         });
         markConversationRead(queryClient, message.conversationId, message.id);
+        return;
       }
+
+      // 否则用系统通知提醒
+      const conversation = queryClient
+        .getQueryData<ConversationView[]>(queryKeys.conversations)
+        ?.find((entry) => entry.id === message.conversationId);
+      const sender = conversation?.members.find((member) => member.id === message.senderId);
+      notifyNewMessage(
+        message,
+        conversation,
+        sender?.displayName ?? t.chat.formerMember,
+        (conversationId) => void navigate(`/c/${conversationId}`),
+      );
     };
+    const onMessageUpdated = (message: MessageView) => replaceMessage(queryClient, message);
     const onTyping = (event: TypingEvent) => {
       if (event.userId !== meId) useTypingStore.getState().apply(event);
     };
@@ -59,6 +80,8 @@ export function useRealtimeSync(meId: number) {
     const onRead = (event: ReadEvent) => {
       if (event.userId === meId) {
         markConversationRead(queryClient, event.conversationId, event.messageId);
+      } else {
+        applyPeerRead(queryClient, event.conversationId, event.userId, event.messageId);
       }
     };
     const onFriendRequest = () => {
@@ -82,6 +105,7 @@ export function useRealtimeSync(meId: number) {
     };
 
     socket.on('message:new', onMessage);
+    socket.on('message:updated', onMessageUpdated);
     socket.on('typing', onTyping);
     socket.on('presence', onPresence);
     socket.on('conversation:updated', onConversationUpdated);
@@ -94,6 +118,7 @@ export function useRealtimeSync(meId: number) {
 
     return () => {
       socket.off('message:new', onMessage);
+      socket.off('message:updated', onMessageUpdated);
       socket.off('typing', onTyping);
       socket.off('presence', onPresence);
       socket.off('conversation:updated', onConversationUpdated);

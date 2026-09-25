@@ -3,6 +3,7 @@ import {
   conversationIdParamSchema,
   createConversationSchema,
   memberParamsSchema,
+  messageParamsSchema,
   messagesQuerySchema,
   updateConversationSchema,
 } from '@beechat/shared';
@@ -15,7 +16,7 @@ import {
   requireConversationView,
 } from './conversations.service';
 import { addMembers, createGroup, removeMember, renameGroup } from './groups.service';
-import { getMessages } from './messages.service';
+import { getMessages, recallMessage } from './messages.service';
 
 export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get('/', { preHandler: app.authenticate }, async (request) => {
@@ -81,6 +82,17 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
       const { user } = requireAuth(request);
       await removeMember(app.ctx, user, request.params.id, request.params.userId);
       return { ok: true };
+    },
+  );
+
+  app.post(
+    '/:id/messages/:messageId/recall',
+    { preHandler: app.authenticate, schema: { params: messageParamsSchema } },
+    async (request) => {
+      const { user } = requireAuth(request);
+      return {
+        message: await recallMessage(app.ctx, user.id, request.params.id, request.params.messageId),
+      };
     },
   );
 

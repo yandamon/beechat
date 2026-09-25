@@ -1,4 +1,4 @@
-import { Users, WifiOff } from 'lucide-react';
+import { Bell, BellOff, Users, WifiOff } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, Outlet, useMatch } from 'react-router';
 import { ConversationList } from '@/components/chat/conversation-list';
@@ -6,6 +6,11 @@ import { CreateGroupDialog } from '@/components/chat/create-group-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
 import { useConversations, useFriendRequests } from '@/features/chat/queries';
+import {
+  enableNotifications,
+  notificationsSupported,
+  useNotificationStore,
+} from '@/features/chat/notifications';
 import { useRealtimeSync } from '@/features/chat/use-realtime-sync';
 import { t } from '@/i18n/zh-CN';
 import { cn } from '@/lib/utils';
@@ -20,6 +25,17 @@ export function ChatLayout() {
   const requests = useFriendRequests();
   const incomingCount = requests.data?.incoming.length ?? 0;
   const connection = useConnectionStore();
+  const notifications = useNotificationStore();
+  const notificationsOn =
+    notificationsSupported && notifications.enabled && Notification.permission === 'granted';
+  const toggleNotifications = async () => {
+    if (notificationsOn) {
+      notifications.setEnabled(false);
+      return;
+    }
+    const permission = await enableNotifications();
+    if (permission === 'denied') window.alert(t.chat.notificationsBlocked);
+  };
   const showOffline = connection.everConnected && connection.status !== 'online';
 
   // 标签页标题带上总未读数
@@ -57,6 +73,18 @@ export function ChatLayout() {
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-2 pl-4">
           <h1 className="text-sm font-semibold">{t.chat.conversations}</h1>
           <div className="flex items-center gap-1">
+            {notificationsSupported ? (
+              <button
+                type="button"
+                onClick={() => void toggleNotifications()}
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                aria-label={notificationsOn ? t.chat.notificationsOn : t.chat.notificationsOff}
+                title={notificationsOn ? t.chat.notificationsOn : t.chat.notificationsOff}
+                aria-pressed={notificationsOn}
+              >
+                {notificationsOn ? <Bell /> : <BellOff />}
+              </button>
+            ) : null}
             <CreateGroupDialog />
             <Link
               to="/friends"

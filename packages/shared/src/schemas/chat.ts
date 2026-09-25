@@ -31,6 +31,7 @@ export const typingSchema = z.object({ conversationId: positiveId });
 export const readSchema = z.object({ conversationId: positiveId, messageId: positiveId });
 
 export const conversationIdParamSchema = z.object({ id: coercedId });
+export const messageParamsSchema = z.object({ id: coercedId, messageId: coercedId });
 
 /** before：取比它更早的消息；after：取比它更新的消息（重连补拉用）；两者都不传取最新一页 */
 export const messagesQuerySchema = z.object({

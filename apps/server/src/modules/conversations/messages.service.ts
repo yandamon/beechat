@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { MessagePage, MessageView, MessagesQuery, SendMessageInput } from '@beechat/shared';
+import {
+  LIMITS,
+  type MessagePage,
+  type MessageView,
+  type MessagesQuery,
+  type SendMessageInput,
+} from '@beechat/shared';
 import { and, asc, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import type { AppContext } from '../../context';
 import type { DbLike } from '../../db/client';
@@ -157,13 +163,7 @@ export async function getMessages(
     const rows = await db
       .select()
       .from(messages)
-      .where(
-        and(
-          eq(messages.conversationId, conversationId),
-          isNull(messages.deletedAt),
-          gt(messages.id, query.after),
-        ),
-      )
+      .where(and(eq(messages.conversationId, conversationId), gt(messages.id, query.after)))
       .orderBy(asc(messages.id))
       .limit(limit + 1);
     return { messages: rows.slice(0, limit).map(toMessageView), hasMore: rows.length > limit };
@@ -175,7 +175,6 @@ export async function getMessages(
     .where(
       and(
         eq(messages.conversationId, conversationId),
-        isNull(messages.deletedAt),
         query.before !== undefined ? lt(messages.id, query.before) : undefined,
       ),
     )
@@ -209,4 +208,34 @@ export async function markRead(
     )
     .returning({ conversationId: conversationMembers.conversationId });
   return updated.length > 0;
+}
+
+/** 撤回：只能撤自己发出且在时限内的消息，软删除后把新视图广播给全会话 */
+export async function recallMessage(
+  ctx: AppContext,
+  userId: number,
+  conversationId: number,
+  messageId: number,
+): Promise<MessageView> {
+  const { db, io } = ctx;
+  await assertMember(db, conversationId, userId);
+  const [message] = await db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)))
+    .limit(1);
+  if (!message) throw new AppError(404, '消息不存在', 'MESSAGE_NOT_FOUND');
+  if (message.senderId !== userId) throw new AppError(403, '只能撤回自己的消息', 'NOT_SENDER');
+  if (message.deletedAt) return toMessageView(message);
+  if (Date.now() - message.createdAt.getTime() > LIMITS.recallWindowMs) {
+    throw new AppError(400, '超过两分钟的消息不能撤回', 'RECALL_WINDOW_PASSED');
+  }
+  const [updated] = await db
+    .update(messages)
+    .set({ deletedAt: new Date() })
+    .where(eq(messages.id, messageId))
+    .returning();
+  const view = toMessageView(updated ?? message);
+  io.to(conversationRoom(conversationId)).emit('message:updated', view);
+  return view;
 }

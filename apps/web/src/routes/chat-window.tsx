@@ -10,7 +10,12 @@ import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
 import { flattenMessages, markConversationRead } from '@/features/chat/cache';
 import { conversationName } from '@/features/chat/names';
-import { useConversations, useFriends, useMessages } from '@/features/chat/queries';
+import {
+  useConversations,
+  useFriends,
+  useMessages,
+  useRecallMessage,
+} from '@/features/chat/queries';
 import { useActiveConversationStore, useTypingUsers } from '@/features/chat/stores';
 import { useSendMessage } from '@/features/chat/use-send-message';
 import { t } from '@/i18n/zh-CN';
@@ -31,6 +36,7 @@ export function ChatWindow() {
   const messages = useMemo(() => flattenMessages(messagesQuery.data), [messagesQuery.data]);
   const typingUsers = useTypingUsers(conversationId);
   const { send, sendImage, retry } = useSendMessage(conversationId, meId);
+  const recall = useRecallMessage(conversationId);
 
   // 告诉实时同步层当前开着哪个会话，它据此决定新消息算不算未读
   useEffect(() => {
@@ -128,11 +134,13 @@ export function ChatWindow() {
         messages={messages}
         meId={meId}
         senderName={isGroup ? (id) => memberNames.get(id) ?? t.chat.formerMember : undefined}
+        peerLastReadMessageId={isGroup ? null : conversation.peerLastReadMessageId}
         isPending={messagesQuery.isPending}
         hasMore={messagesQuery.hasNextPage}
         isFetchingMore={messagesQuery.isFetchingNextPage}
         onLoadMore={() => void messagesQuery.fetchNextPage()}
         onRetry={retry}
+        onRecall={(message) => recall.mutate(message.id)}
       />
 
       <Composer

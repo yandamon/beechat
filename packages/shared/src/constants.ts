@@ -16,6 +16,8 @@ export const LIMITS = {
   historyPageSize: 50,
   sessionDays: 30,
   presenceGraceMs: 10_000,
+  /** 发出后多久之内可以撤回 */
+  recallWindowMs: 2 * 60_000,
 } as const;
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;

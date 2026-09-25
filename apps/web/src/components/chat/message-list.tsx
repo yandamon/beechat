@@ -1,4 +1,5 @@
-import type { AttachmentView } from '@beechat/shared';
+import { type AttachmentView, LIMITS } from '@beechat/shared';
+import { Undo2 } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { LocalMessage } from '@/features/chat/cache';
@@ -11,11 +12,14 @@ interface MessageListProps {
   meId: number;
   /** 群聊里给别人的消息标上名字；私聊不传 */
   senderName?: (senderId: number) => string;
+  /** 私聊里对方读到的位置，用于“已读” */
+  peerLastReadMessageId?: number | null;
   isPending: boolean;
   hasMore: boolean;
   isFetchingMore: boolean;
   onLoadMore: () => void;
   onRetry: (message: LocalMessage) => void;
+  onRecall: (message: LocalMessage) => void;
 }
 
 /**
@@ -26,11 +30,13 @@ export function MessageList({
   messages,
   meId,
   senderName,
+  peerLastReadMessageId,
   isPending,
   hasMore,
   isFetchingMore,
   onLoadMore,
   onRetry,
+  onRecall,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -67,6 +73,18 @@ export function MessageList({
     if (element.scrollTop < 80 && hasMore && !isFetchingMore) onLoadMore();
   };
 
+  // “已读”只标在对方已读范围内、我发出的最后一条消息上
+  const lastReadOwnId = [...messages]
+    .reverse()
+    .find(
+      (message) =>
+        message.senderId === meId &&
+        message.id > 0 &&
+        peerLastReadMessageId !== undefined &&
+        peerLastReadMessageId !== null &&
+        message.id <= peerLastReadMessageId,
+    )?.id;
+
   return (
     <div ref={listRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       {isPending ? (
@@ -87,16 +105,31 @@ export function MessageList({
             message.senderId !== null &&
             message.type !== 'system' &&
             previous?.senderId !== message.senderId;
+          const name = showName && message.senderId !== null ? senderName(message.senderId) : null;
           return (
             <li key={message.clientId}>
               {message.type === 'system' ? (
-                <SystemMessage message={message} />
+                <SystemMessage content={message.content ?? ''} />
+              ) : message.deletedAt ? (
+                <SystemMessage
+                  content={
+                    mine
+                      ? t.chat.recalledMine
+                      : t.chat.recalledOther(
+                          senderName && message.senderId !== null
+                            ? senderName(message.senderId)
+                            : t.chat.peer,
+                        )
+                  }
+                />
               ) : (
                 <Bubble
                   message={message}
                   mine={mine}
-                  name={showName && message.senderId !== null ? senderName(message.senderId) : null}
+                  name={name}
+                  read={message.id === lastReadOwnId}
                   onRetry={onRetry}
+                  onRecall={onRecall}
                 />
               )}
             </li>
@@ -107,10 +140,10 @@ export function MessageList({
   );
 }
 
-function SystemMessage({ message }: { message: LocalMessage }) {
+function SystemMessage({ content }: { content: string }) {
   return (
     <p className="py-1 text-center text-xs text-muted-foreground">
-      <span className="rounded-full bg-muted px-3 py-1">{message.content}</span>
+      <span className="rounded-full bg-muted px-3 py-1">{content}</span>
     </p>
   );
 }
@@ -175,32 +208,56 @@ function Bubble({
   message,
   mine,
   name,
+  read,
   onRetry,
+  onRecall,
 }: {
   message: LocalMessage;
   mine: boolean;
   name: string | null;
+  read: boolean;
   onRetry: (message: LocalMessage) => void;
+  onRecall: (message: LocalMessage) => void;
 }) {
   const isImage = message.type === 'image' && message.attachment !== null;
+  const canRecall =
+    mine &&
+    !message.pending &&
+    !message.failed &&
+    message.id > 0 &&
+    Date.now() - new Date(message.createdAt).getTime() < LIMITS.recallWindowMs;
+
   return (
-    <div className={cn('flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
+    <div className={cn('group flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
       {name ? <span className="px-1 text-xs text-muted-foreground">{name}</span> : null}
-      {isImage && message.attachment ? (
-        <ImageAttachment attachment={message.attachment} pending={message.pending} />
-      ) : (
-        <div
-          className={cn(
-            'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',
-            mine
-              ? 'rounded-br-md bg-primary text-primary-foreground'
-              : 'rounded-bl-md bg-muted text-foreground',
-            message.pending && 'opacity-70',
-          )}
-        >
-          {message.content}
-        </div>
-      )}
+      <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
+        {isImage && message.attachment ? (
+          <ImageAttachment attachment={message.attachment} pending={message.pending} />
+        ) : (
+          <div
+            className={cn(
+              'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',
+              mine
+                ? 'rounded-br-md bg-primary text-primary-foreground'
+                : 'rounded-bl-md bg-muted text-foreground',
+              message.pending && 'opacity-70',
+            )}
+          >
+            {message.content}
+          </div>
+        )}
+        {canRecall ? (
+          <button
+            type="button"
+            onClick={() => onRecall(message)}
+            title={t.chat.recall}
+            aria-label={t.chat.recall}
+            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
+          >
+            <Undo2 className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         {message.failed ? (
           <>
@@ -216,7 +273,10 @@ function Bubble({
         ) : message.pending ? (
           <span>{isImage ? t.chat.uploading : t.chat.sending}</span>
         ) : (
-          <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+          <>
+            <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+            {read ? <span>{t.chat.read}</span> : null}
+          </>
         )}
       </div>
     </div>

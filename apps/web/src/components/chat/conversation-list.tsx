@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 function previewOf(message: MessageView | null): string {
   if (!message) return '';
+  if (message.deletedAt) return t.chat.recalledPreview;
   if (message.type === 'image') return t.chat.imageMessage;
   return message.content ?? '';
 }

@@ -2,7 +2,7 @@ import { LIMITS } from '@beechat/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { chatApi, friendsApi } from '@/lib/api';
-import { queryKeys, removeConversation, upsertConversation } from './cache';
+import { queryKeys, removeConversation, replaceMessage, upsertConversation } from './cache';
 
 export function useConversations() {
   return useQuery({
@@ -138,5 +138,15 @@ export function useRemoveMember(conversationId: number, meId: number) {
         void navigate('/');
       }
     },
+  });
+}
+
+/** 撤回自己的消息；服务端同时会广播 message:updated，这里先本地替换一次 */
+export function useRecallMessage(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (messageId: number) =>
+      (await chatApi.recall(conversationId, messageId)).message,
+    onSuccess: (message) => replaceMessage(queryClient, message),
   });
 }

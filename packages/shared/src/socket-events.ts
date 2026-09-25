@@ -15,7 +15,7 @@ export interface TypingEvent {
   isTyping: boolean;
 }
 
-/** 某人把某会话读到了某条消息；v1 只推给本人的其他连接用于同步未读 */
+/** 某人把某会话读到了某条消息；推给会话全部成员：本人其他连接同步未读，对方用来显示“已读” */
 export interface ReadEvent {
   conversationId: number;
   userId: number;
@@ -52,6 +52,8 @@ export interface ClientToServerEvents {
 /** 服务端 → 客户端 */
 export interface ServerToClientEvents {
   'message:new': (message: MessageView) => void;
+  /** 消息被撤回等变更，整条消息视图重新下发 */
+  'message:updated': (message: MessageView) => void;
   typing: (event: TypingEvent) => void;
   presence: (event: PresenceEvent) => void;
   'conversation:updated': (conversation: ConversationView) => void;

@@ -50,6 +50,8 @@ export interface ConversationView {
   /** 别人发的、在我已读位置之后的消息数 */
   unreadCount: number;
   lastReadMessageId: number | null;
+  /** 私聊里对方读到的位置，用于“已读”标记；群聊为 null */
+  peerLastReadMessageId: number | null;
   createdAt: string;
 }
 

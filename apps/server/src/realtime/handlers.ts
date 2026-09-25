@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 import type { AppContext } from '../context';
 import { AppError } from '../lib/errors';
 import { markRead, sendMessage } from '../modules/conversations/messages.service';
-import { conversationRoom, userRoom } from './rooms';
+import { conversationRoom } from './rooms';
 
 function toAckError(error: unknown, log: FastifyBaseLogger): SendMessageAck {
   if (error instanceof AppError) return { ok: false, code: error.code, message: error.message };
@@ -58,9 +58,13 @@ export function registerRealtimeHandlers(ctx: AppContext) {
       if (!socket.rooms.has(conversationRoom(conversationId))) return;
       try {
         const changed = await markRead(ctx, userId, conversationId, messageId);
-        // 同步给本人的其他连接，让别的标签页也清掉未读
+        // 推给整个会话：本人其他连接清未读，对方显示“已读”
         if (changed)
-          io.to(userRoom(userId)).emit('conversation:read', { conversationId, userId, messageId });
+          io.to(conversationRoom(conversationId)).emit('conversation:read', {
+            conversationId,
+            userId,
+            messageId,
+          });
       } catch (error) {
         log.error(error, 'conversation:read failed');
       }

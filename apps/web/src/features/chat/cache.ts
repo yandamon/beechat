@@ -154,3 +154,45 @@ export function removeConversation(queryClient: QueryClient, conversationId: num
   );
   queryClient.removeQueries({ queryKey: queryKeys.messages(conversationId) });
 }
+
+/** 对方读到了某条消息：更新私聊会话里的对方已读位置 */
+export function applyPeerRead(
+  queryClient: QueryClient,
+  conversationId: number,
+  userId: number,
+  messageId: number,
+) {
+  queryClient.setQueryData<ConversationView[]>(queryKeys.conversations, (list) =>
+    list?.map((conversation) =>
+      conversation.id === conversationId && conversation.peer?.id === userId
+        ? {
+            ...conversation,
+            peerLastReadMessageId: Math.max(conversation.peerLastReadMessageId ?? 0, messageId),
+          }
+        : conversation,
+    ),
+  );
+}
+
+/** 撤回等变更：按 clientId 替换消息，并同步会话列表里的最后一条 */
+export function replaceMessage(queryClient: QueryClient, message: MessageView) {
+  queryClient.setQueryData<MessagesData>(queryKeys.messages(message.conversationId), (data) => {
+    if (!data) return data;
+    return {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        messages: page.messages.map((entry) =>
+          entry.clientId === message.clientId ? message : entry,
+        ),
+      })),
+    };
+  });
+  queryClient.setQueryData<ConversationView[]>(queryKeys.conversations, (list) =>
+    list?.map((conversation) =>
+      conversation.id === message.conversationId && conversation.lastMessage?.id === message.id
+        ? { ...conversation, lastMessage: message }
+        : conversation,
+    ),
+  );
+}

@@ -121,6 +121,7 @@ export async function getConversationViews(
       conversationId: conversationMembers.conversationId,
       role: conversationMembers.role,
       joinedAt: conversationMembers.joinedAt,
+      lastReadMessageId: conversationMembers.lastReadMessageId,
       user: users,
     })
     .from(conversationMembers)
@@ -130,7 +131,7 @@ export async function getConversationViews(
   const lastIdRows = await db
     .select({ conversationId: messages.conversationId, id: max(messages.id) })
     .from(messages)
-    .where(and(inArray(messages.conversationId, ids), isNull(messages.deletedAt)))
+    .where(inArray(messages.conversationId, ids))
     .groupBy(messages.conversationId);
   const lastIds = lastIdRows.map((row) => row.id).filter((id): id is number => id !== null);
   const lastMessages =
@@ -167,10 +168,11 @@ export async function getConversationViews(
 
   return base.map(({ conversation, lastReadMessageId }) => {
     const memberList = membersByConversation.get(conversation.id) ?? [];
-    const peer =
+    const peerMember =
       conversation.type === 'direct'
-        ? memberList.find((member) => member.user.id !== userId)?.user
+        ? memberList.find((member) => member.user.id !== userId)
         : undefined;
+    const peer = peerMember?.user;
     const lastMessage = lastByConversation.get(conversation.id);
     return {
       id: conversation.id,
@@ -187,6 +189,7 @@ export async function getConversationViews(
       lastMessageAt: conversation.lastMessageAt?.toISOString() ?? null,
       unreadCount: unreadByConversation.get(conversation.id) ?? 0,
       lastReadMessageId,
+      peerLastReadMessageId: peerMember?.lastReadMessageId ?? null,
       createdAt: conversation.createdAt.toISOString(),
     };
   });
@@ -258,7 +261,7 @@ export async function getConversationViewsForMembers(
   const [lastIdRow] = await db
     .select({ id: max(messages.id) })
     .from(messages)
-    .where(and(eq(messages.conversationId, conversationId), isNull(messages.deletedAt)));
+    .where(eq(messages.conversationId, conversationId));
   const lastId = lastIdRow?.id ?? null;
   const [lastMessage] =
     lastId !== null ? await db.select().from(messages).where(eq(messages.id, lastId)).limit(1) : [];
@@ -303,6 +306,7 @@ export async function getConversationViewsForMembers(
       lastMessageAt: conversation.lastMessageAt?.toISOString() ?? null,
       unreadCount: unreadByUser.get(member.user.id) ?? 0,
       lastReadMessageId: member.lastReadMessageId,
+      peerLastReadMessageId: peerRow?.lastReadMessageId ?? null,
       createdAt: conversation.createdAt.toISOString(),
     });
   }
