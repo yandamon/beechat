@@ -1,8 +1,10 @@
-import type { ConversationView } from '@beechat/shared';
+import { randomUUID } from 'node:crypto';
+import type { ConversationView, MessageView } from '@beechat/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { appSettings } from '../../db/schema';
 import { type TestApp, createTestApp } from '../../test/create-test-app';
+import { connectAs, sendMessage, waitForConnect, waitForEvent } from '../../test/helpers';
 import { SESSION_COOKIE } from '../auth/session.service';
 
 describe('demo account', () => {
@@ -78,5 +80,53 @@ describe('demo account', () => {
       cookies: { [SESSION_COOKIE]: cookieOf(third) },
     });
     expect(conversations.json().conversations).toHaveLength(2);
+  });
+});
+
+describe('demo assistant', () => {
+  it('replies in the demo direct chat after showing typing', async () => {
+    const ctx = await createTestApp();
+    await ctx.reset();
+    await ctx.app.listen({ port: 0, host: '127.0.0.1' });
+    try {
+      const login = await ctx.app.inject({ method: 'POST', url: '/api/auth/demo' });
+      const token = login.cookies.find((cookie) => cookie.name === SESSION_COOKIE)?.value ?? '';
+      const conversations = await ctx.app.inject({
+        method: 'GET',
+        url: '/api/conversations',
+        cookies: { [SESSION_COOKIE]: token },
+      });
+      const direct: ConversationView = conversations
+        .json()
+        .conversations.find((entry: ConversationView) => entry.type === 'direct');
+
+      const { port } = ctx.app.server.address() as { port: number };
+      const socket = connectAs(`http://127.0.0.1:${port}`, {
+        user: login.json().user,
+        token,
+        cookies: { [SESSION_COOKIE]: token },
+      });
+      await waitForConnect(socket);
+
+      const typing = waitForEvent(socket, 'typing');
+      const replyPromise = new Promise<MessageView>((resolve) => {
+        socket.on('message:new', (message) => {
+          if (message.senderId === direct.peer?.id) resolve(message);
+        });
+      });
+      const ack = await sendMessage(socket, {
+        conversationId: direct.id,
+        clientId: randomUUID(),
+        type: 'text',
+        content: '你好',
+      });
+      expect(ack.ok).toBe(true);
+      expect((await typing).userId).toBe(direct.peer?.id);
+      const reply = await replyPromise;
+      expect(reply.content).toContain('小蜜蜂助手');
+      socket.disconnect();
+    } finally {
+      await ctx.close();
+    }
   });
 });

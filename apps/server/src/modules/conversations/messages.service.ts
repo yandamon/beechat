@@ -19,6 +19,7 @@ import {
 import { AppError } from '../../lib/errors';
 import { toMessageView } from '../../lib/views';
 import { conversationRoom } from '../../realtime/rooms';
+import { maybeReplyAsBot } from '../demo/bot';
 import { areFriends } from '../friends/friends.repo';
 import { requireCompletedUpload } from '../uploads/uploads.service';
 import { assertMember } from './conversations.service';
@@ -144,7 +145,10 @@ export async function sendMessage(
   });
 
   const view = toMessageView(result.message);
-  if (!result.duplicate) io.to(conversationRoom(conversationId)).emit('message:new', view);
+  if (!result.duplicate) {
+    io.to(conversationRoom(conversationId)).emit('message:new', view);
+    maybeReplyAsBot(ctx, view);
+  }
   return view;
 }
 
