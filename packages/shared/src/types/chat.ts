@@ -1,0 +1,60 @@
+import type { PublicUser } from './user';
+
+export type ConversationType = 'direct' | 'group';
+export type MessageType = 'text' | 'image' | 'system';
+export type MemberRole = 'owner' | 'member';
+
+export interface AttachmentView {
+  url: string;
+  width: number;
+  height: number;
+  size: number;
+  mime: string;
+}
+
+export interface MessageView {
+  id: number;
+  conversationId: number;
+  /** 系统消息为 null */
+  senderId: number | null;
+  type: MessageType;
+  content: string | null;
+  attachment: AttachmentView | null;
+  /** 客户端生成的幂等键 */
+  clientId: string;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
+/** 私聊对方，带当前在线状态 */
+export interface PeerView extends PublicUser {
+  online: boolean;
+}
+
+export interface ConversationMemberView extends PublicUser {
+  role: MemberRole;
+  joinedAt: string;
+}
+
+export interface ConversationView {
+  id: number;
+  type: ConversationType;
+  /** 群名；私聊为 null，界面显示对方的名字 */
+  name: string | null;
+  avatarUrl: string | null;
+  /** 私聊时是对方；群聊为 null */
+  peer: PeerView | null;
+  members: ConversationMemberView[];
+  lastMessage: MessageView | null;
+  lastMessageAt: string | null;
+  /** 别人发的、在我已读位置之后的消息数 */
+  unreadCount: number;
+  lastReadMessageId: number | null;
+  createdAt: string;
+}
+
+/** 历史消息分页：messages 按 id 升序，hasMore 表示更早的方向还有 */
+export interface MessagePage {
+  messages: MessageView[];
+  hasMore: boolean;
+}

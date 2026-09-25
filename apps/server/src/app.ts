@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LIMITS } from '@beechat/shared';
 import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
@@ -12,11 +13,16 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 import { config } from './config';
+import type { AppContext } from './context';
 import type { Db } from './db/client';
 import { registerErrorHandler } from './lib/errors';
 import { authRoutes } from './modules/auth/auth.routes';
+import { conversationsRoutes } from './modules/conversations/conversations.routes';
+import { friendsRoutes } from './modules/friends/friends.routes';
+import { usersRoutes } from './modules/users/users.routes';
 import { authPlugin } from './plugins/auth';
-import { attachRealtime } from './realtime';
+import { registerRealtimeHandlers } from './realtime/handlers';
+import { createRealtime } from './realtime/server';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -39,9 +45,15 @@ export interface BuildAppOptions {
   db: Db;
   /** 集成测试里关闭，避免连续请求被限流 */
   rateLimit?: boolean;
+  /** 断线后多久判定离线；测试里调小 */
+  presenceGraceMs?: number;
 }
 
-export async function buildApp({ db, rateLimit = true }: BuildAppOptions) {
+export async function buildApp({
+  db,
+  rateLimit = true,
+  presenceGraceMs = LIMITS.presenceGraceMs,
+}: BuildAppOptions) {
   const base = Fastify({
     logger: loggerOptions(),
     // Railway 前面有反向代理，生产环境从 X-Forwarded-For 取真实 IP 供限流使用
@@ -63,11 +75,28 @@ export async function buildApp({ db, rateLimit = true }: BuildAppOptions) {
   }
   await base.register(authPlugin);
 
+  const { io, presence } = createRealtime({
+    httpServer: base.server,
+    db,
+    log: base.log,
+    presenceGraceMs,
+  });
+  const ctx: AppContext = { db, io, presence, log: base.log };
+  base.decorate('ctx', ctx);
+  base.decorate('io', io);
+  base.addHook('onClose', async () => {
+    presence.dispose();
+    await io.close();
+  });
+
   const app = base.withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
   await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(usersRoutes, { prefix: '/api/users' });
+  await app.register(friendsRoutes, { prefix: '/api/friends' });
+  await app.register(conversationsRoutes, { prefix: '/api/conversations' });
 
   app.get('/api/health', async (_request, reply) => {
     let dbStatus: 'ok' | 'error' = 'ok';
@@ -97,7 +126,7 @@ export async function buildApp({ db, rateLimit = true }: BuildAppOptions) {
     });
   }
 
-  attachRealtime(app);
+  registerRealtimeHandlers(ctx);
 
   return app;
 }

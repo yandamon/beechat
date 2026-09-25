@@ -20,10 +20,19 @@ export interface TestApp {
 }
 
 /** 连接 .env.test 指定的测试库、应用迁移并构建应用。默认关闭限流。 */
-export async function createTestApp(options: { rateLimit?: boolean } = {}): Promise<TestApp> {
+export interface TestAppOptions {
+  rateLimit?: boolean;
+  presenceGraceMs?: number;
+}
+
+export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const { db, pool } = createDb(config.DATABASE_URL);
   await runMigrations(db, MIGRATIONS_DIR);
-  const app = await buildApp({ db, rateLimit: options.rateLimit ?? false });
+  const app = await buildApp({
+    db,
+    rateLimit: options.rateLimit ?? false,
+    presenceGraceMs: options.presenceGraceMs,
+  });
   return {
     app,
     db,

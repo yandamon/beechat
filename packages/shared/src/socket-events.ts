@@ -1,21 +1,54 @@
-/** Socket.IO 事件名。客户端 → 服务端。 */
-export const ClientEvents = {
-  messageSend: 'message:send',
-  typingStart: 'typing:start',
-  typingStop: 'typing:stop',
-  conversationRead: 'conversation:read',
-} as const;
+import type { ConversationView, MessageView } from './types/chat';
+import type { FriendRequestView, FriendView } from './types/friends';
 
-/** Socket.IO 事件名。服务端 → 客户端。 */
-export const ServerEvents = {
-  messageNew: 'message:new',
-  typing: 'typing',
-  presence: 'presence',
-  conversationUpdated: 'conversation:updated',
-  conversationRead: 'conversation:read',
-  friendRequest: 'friend:request',
-  friendAccepted: 'friend:accepted',
-} as const;
+/** 在线状态变化，只推给该用户的好友 */
+export interface PresenceEvent {
+  userId: number;
+  online: boolean;
+  lastSeenAt: string | null;
+}
 
-export type ClientEvent = (typeof ClientEvents)[keyof typeof ClientEvents];
-export type ServerEvent = (typeof ServerEvents)[keyof typeof ServerEvents];
+/** 正在输入，只推给同一会话的其他成员，不落库 */
+export interface TypingEvent {
+  conversationId: number;
+  userId: number;
+  isTyping: boolean;
+}
+
+/** 某人把某会话读到了某条消息；v1 只推给本人的其他连接用于同步未读 */
+export interface ReadEvent {
+  conversationId: number;
+  userId: number;
+  messageId: number;
+}
+
+export interface SendMessagePayload {
+  conversationId: number;
+  /** 客户端生成的 UUID，重试时复用即可去重 */
+  clientId: string;
+  type: 'text';
+  content: string;
+}
+
+export type SendMessageAck =
+  { ok: true; message: MessageView } | { ok: false; code: string; message: string };
+
+/** 客户端 → 服务端 */
+export interface ClientToServerEvents {
+  'message:send': (payload: SendMessagePayload, ack: (result: SendMessageAck) => void) => void;
+  'typing:start': (payload: { conversationId: number }) => void;
+  'typing:stop': (payload: { conversationId: number }) => void;
+  'conversation:read': (payload: { conversationId: number; messageId: number }) => void;
+}
+
+/** 服务端 → 客户端 */
+export interface ServerToClientEvents {
+  'message:new': (message: MessageView) => void;
+  typing: (event: TypingEvent) => void;
+  presence: (event: PresenceEvent) => void;
+  'conversation:updated': (conversation: ConversationView) => void;
+  'conversation:read': (event: ReadEvent) => void;
+  'friend:request': (request: FriendRequestView) => void;
+  'friend:accepted': (friend: FriendView) => void;
+  'friend:removed': (event: { userId: number }) => void;
+}
