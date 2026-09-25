@@ -18,7 +18,14 @@ export function RootLayout() {
         <div className="flex items-center gap-2">
           {me.data ? (
             <>
-              <span className="text-sm text-muted-foreground">{me.data.displayName}</span>
+              <span className="text-sm text-muted-foreground">
+                {me.data.displayName}
+                {me.data.username === 'demo' ? (
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {t.auth.demoBadge}
+                  </span>
+                ) : null}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"

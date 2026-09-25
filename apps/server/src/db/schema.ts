@@ -198,3 +198,12 @@ export type Conversation = typeof conversations.$inferSelect;
 export type ConversationMember = typeof conversationMembers.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Upload = typeof uploads.$inferSelect;
+
+/** 应用级键值设置，例如演示数据上次重置的时间 */
+export const appSettings = pgTable('app_settings', {
+  key: text().primaryKey(),
+  value: text().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;

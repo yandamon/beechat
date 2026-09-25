@@ -1,6 +1,7 @@
 import { loginSchema, registerSchema } from '@beechat/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
+import { loginDemo } from '../demo/demo.service';
 import { assertInviteCode, authenticateUser, registerUser, toPublicUser } from './auth.service';
 import { clearSessionCookie, deleteSession, deleteUserSessions } from './session.service';
 
@@ -27,6 +28,17 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request, reply) => {
       const user = await authenticateUser(app.db, request.body.username, request.body.password);
+      await app.startSession(reply, user.id, request.headers['user-agent']);
+      return { user: toPublicUser(user) };
+    },
+  );
+
+  // 演示账号一键登录，不需要邀请码；数据超过一天会先重置
+  app.post(
+    '/demo',
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const user = await loginDemo(app.ctx);
       await app.startSession(reply, user.id, request.headers['user-agent']);
       return { user: toPublicUser(user) };
     },

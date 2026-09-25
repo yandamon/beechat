@@ -14,6 +14,11 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ error: '缺少 DATABASE_URL，请参考 .env.example' }),
   INVITE_CODE: z.string().min(1, '缺少 INVITE_CODE，请参考 .env.example'),
+  /** 是否开放演示账号一键登录 */
+  DEMO_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
 });
 
 export type Config = z.infer<typeof envSchema>;

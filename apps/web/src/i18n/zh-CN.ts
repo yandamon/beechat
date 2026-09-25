@@ -32,6 +32,9 @@ export const t = {
     haveAccount: '已有账号？',
     toRegister: '去注册',
     toLogin: '去登录',
+    demoButton: '试用演示账号',
+    demoHint: '不用注册，直接进去看看；演示数据每天自动重置。',
+    demoBadge: '演示账号，数据每天重置',
   },
   chat: {
     conversations: '会话',

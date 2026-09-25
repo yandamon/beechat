@@ -5,7 +5,7 @@ import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useLogin } from '@/features/auth/use-auth';
+import { useDemoLogin, useLogin } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
 import { fieldErrorsOf } from '@/lib/forms';
 
@@ -15,6 +15,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const login = useLogin();
+  const demo = useDemoLogin();
   const [form, setForm] = useState<Record<Field, string>>({ username: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
   const from = (location.state as { from?: string } | null)?.from ?? '/';
@@ -73,6 +74,25 @@ export function LoginPage() {
             {login.isPending ? t.common.submitting : t.auth.loginButton}
           </Button>
         </form>
+        <div className="mt-4 space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={demo.isPending}
+            onClick={() => {
+              demo.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) });
+            }}
+          >
+            {demo.isPending ? t.common.submitting : t.auth.demoButton}
+          </Button>
+          <p className="text-center text-xs text-muted-foreground">{t.auth.demoHint}</p>
+          {demo.error ? (
+            <p className="text-center text-sm text-destructive" role="alert">
+              {demo.error.message}
+            </p>
+          ) : null}
+        </div>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           {t.auth.noAccount}{' '}
           <Link to="/register" className="text-foreground underline underline-offset-4">

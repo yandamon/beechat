@@ -74,6 +74,7 @@ export const authApi = {
   login: (body: LoginInput) => api<AuthResponse>('/api/auth/login', { method: 'POST', body }),
   register: (body: RegisterInput) =>
     api<AuthResponse>('/api/auth/register', { method: 'POST', body }),
+  demo: () => api<AuthResponse>('/api/auth/demo', { method: 'POST' }),
   logout: () => api<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
   logoutAll: () => api<{ ok: true }>('/api/auth/logout-all', { method: 'POST' }),
 };

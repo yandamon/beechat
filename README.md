@@ -6,8 +6,8 @@
 
 ## 当前进度
 
-- 已完成：账号注册登录、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、消息实时收发与幂等重试、表情选择器、历史分页、未读数与多端已读同步、在线状态、正在输入、深色模式、Railway 部署。
-- 进行中：图片消息、头像、PWA、演示账号、端到端测试。
+- 已完成：账号注册登录、演示账号一键登录（数据每天重置）、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、消息实时收发与幂等重试、表情选择器、历史分页、未读数与多端已读同步、在线状态、正在输入、深色模式、PWA 可安装、Railway 部署。
+- 进行中：图片消息、头像、端到端测试。
 - 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
 
 ## 技术栈
@@ -47,7 +47,7 @@ cp apps/server/.env.example apps/server/.env
 pnpm dev
 ```
 
-`.env` 里的 `INVITE_CODE` 是注册时必须填写的邀请码，本地默认 `beechat-dev`。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。
+`.env` 里的 `INVITE_CODE` 是注册时必须填写的邀请码，本地默认 `beechat-dev`；`DEMO_ENABLED` 控制登录页的“试用演示账号”入口，默认开启。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。
 
 `pnpm dev` 会同时启动前端（http://localhost:5173）和后端（http://localhost:3000）。前端开发服务器把 `/api` 与 `/socket.io` 代理到后端，因此浏览器始终同源访问。
 

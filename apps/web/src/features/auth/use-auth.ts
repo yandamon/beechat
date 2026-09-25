@@ -40,6 +40,15 @@ export function useRegister() {
   });
 }
 
+/** 演示账号一键登录 */
+export function useDemoLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => authApi.demo(),
+    onSuccess: ({ user }) => queryClient.setQueryData(ME_QUERY_KEY, user),
+  });
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
