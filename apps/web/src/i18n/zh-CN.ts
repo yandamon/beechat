@@ -5,6 +5,33 @@
 export const t = {
   appName: '小蜜蜂',
   tagline: '一个轻量的实时聊天应用',
+  common: {
+    loading: '加载中…',
+    loadFailed: '加载失败，请刷新页面重试',
+    submitting: '请稍候…',
+    logout: '退出登录',
+  },
+  auth: {
+    loginTitle: '登录',
+    loginDescription: '欢迎回来',
+    registerTitle: '注册',
+    registerDescription: '需要邀请码才能注册',
+    username: '用户名',
+    usernameHint: '3 到 20 位小写字母、数字或下划线',
+    password: '密码',
+    passwordHint: '至少 8 位',
+    inviteCode: '邀请码',
+    loginButton: '登录',
+    registerButton: '注册',
+    noAccount: '还没有账号？',
+    haveAccount: '已有账号？',
+    toRegister: '去注册',
+    toLogin: '去登录',
+  },
+  home: {
+    greeting: (name: string) => `你好，${name}`,
+    placeholder: '会话列表和聊天窗口下一步就来。',
+  },
   status: {
     title: '系统状态',
     server: '服务器',
@@ -23,5 +50,4 @@ export const t = {
     system: '跟随系统',
     toggle: '切换主题',
   },
-  footer: '骨架与数据库已就绪。下一步：账号系统。',
 } as const;

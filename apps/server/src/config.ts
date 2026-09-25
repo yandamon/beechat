@@ -13,6 +13,7 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ error: '缺少 DATABASE_URL，请参考 .env.example' }),
+  INVITE_CODE: z.string().min(1, '缺少 INVITE_CODE，请参考 .env.example'),
 });
 
 export type Config = z.infer<typeof envSchema>;

@@ -142,15 +142,14 @@ beechat/
 
 ### 5.3 环境变量
 
-| 变量                    | 用途                                     | 何时启用       |
-| ----------------------- | ---------------------------------------- | -------------- |
-| `PORT`、`HOST`          | 监听端口与地址，Railway 自动注入 `PORT`  | 现在           |
-| `LOG_LEVEL`             | pino 日志级别                            | 现在           |
-| `DATABASE_URL`          | Postgres 连接串；测试从 `.env.test` 读取 | 现在           |
-| `SESSION_COOKIE_SECRET` | Cookie 签名密钥                          | 鉴权接入后     |
-| `INVITE_CODE`           | 注册邀请码                               | 鉴权接入后     |
-| `STORAGE_DRIVER`        | `local` 或 `r2`                          | 图片上传接入后 |
-| `R2_*`                  | R2 账号、密钥、桶名、公开地址            | 图片上传接入后 |
+| 变量             | 用途                                     | 何时启用       |
+| ---------------- | ---------------------------------------- | -------------- |
+| `PORT`、`HOST`   | 监听端口与地址，Railway 自动注入 `PORT`  | 现在           |
+| `LOG_LEVEL`      | pino 日志级别                            | 现在           |
+| `DATABASE_URL`   | Postgres 连接串；测试从 `.env.test` 读取 | 现在           |
+| `INVITE_CODE`    | 注册邀请码，常数时间比较                 | 现在           |
+| `STORAGE_DRIVER` | `local` 或 `r2`                          | 图片上传接入后 |
+| `R2_*`           | R2 账号、密钥、桶名、公开地址            | 图片上传接入后 |
 
 ## 6. 数据模型
 
@@ -203,7 +202,8 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 ## 9. 安全
 
 - HTTPS 与 WSS 由托管平台提供。
-- 密码 argon2id；Session Cookie `httpOnly`、`Secure`、`SameSite=Lax`。
+- 密码 argon2id；会话令牌为 256 位随机值，数据库只存其 sha256；Cookie `beechat_session` 为 `httpOnly`、`Secure`（生产）、`SameSite=Lax`，30 天滚动续期且每天最多写库一次。令牌本身不可伪造，因此不再需要 Cookie 签名密钥。
+- 登录时用户不存在也执行一次哈希校验，避免通过响应时间探测用户名。
 - 限流：登录每 IP 每分钟 5 次；注册每 IP 每小时 3 次；发消息每用户每 10 秒 20 条；上传每用户每分钟 10 次。
 - 上传只允许 jpeg、png、webp、gif，服务端校验类型与大小；预签名 URL 短期有效。
 - 服务端不信任客户端提供的发送者、时间戳和会话成员关系，一律以数据库为准。

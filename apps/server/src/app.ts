@@ -1,11 +1,22 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fastifyCookie from '@fastify/cookie';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { sql } from 'drizzle-orm';
 import Fastify from 'fastify';
+import {
+  type ZodTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 import { config } from './config';
 import type { Db } from './db/client';
+import { registerErrorHandler } from './lib/errors';
+import { authRoutes } from './modules/auth/auth.routes';
+import { authPlugin } from './plugins/auth';
+import { attachRealtime } from './realtime';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -26,11 +37,37 @@ function loggerOptions() {
 
 export interface BuildAppOptions {
   db: Db;
+  /** 集成测试里关闭，避免连续请求被限流 */
+  rateLimit?: boolean;
 }
 
-export async function buildApp({ db }: BuildAppOptions) {
-  const app = Fastify({ logger: loggerOptions() });
-  app.decorate('db', db);
+export async function buildApp({ db, rateLimit = true }: BuildAppOptions) {
+  const base = Fastify({
+    logger: loggerOptions(),
+    // Railway 前面有反向代理，生产环境从 X-Forwarded-For 取真实 IP 供限流使用
+    trustProxy: config.NODE_ENV === 'production',
+  });
+
+  base.decorate('db', db);
+  registerErrorHandler(base);
+  await base.register(fastifyCookie);
+  if (rateLimit) {
+    await base.register(fastifyRateLimit, {
+      global: false,
+      errorResponseBuilder: () => ({
+        statusCode: 429,
+        message: '操作太频繁，请稍后再试',
+        code: 'RATE_LIMITED',
+      }),
+    });
+  }
+  await base.register(authPlugin);
+
+  const app = base.withTypeProvider<ZodTypeProvider>();
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  await app.register(authRoutes, { prefix: '/api/auth' });
 
   app.get('/api/health', async (_request, reply) => {
     let dbStatus: 'ok' | 'error' = 'ok';
@@ -54,11 +91,13 @@ export async function buildApp({ db }: BuildAppOptions) {
     await app.register(fastifyStatic, { root: WEB_DIST, wildcard: false });
     app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith('/api/')) {
-        return reply.code(404).send({ error: 'Not Found' });
+        return reply.code(404).send({ message: '接口不存在', code: 'NOT_FOUND' });
       }
       return reply.sendFile('index.html');
     });
   }
+
+  attachRealtime(app);
 
   return app;
 }

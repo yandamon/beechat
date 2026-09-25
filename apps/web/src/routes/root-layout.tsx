@@ -1,14 +1,12 @@
-import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { useLogout, useMe } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
-import { connectSocket, disconnectSocket } from '@/stores/connection';
 
 export function RootLayout() {
-  useEffect(() => {
-    connectSocket();
-    return () => disconnectSocket();
-  }, []);
+  const me = useMe();
+  const logout = useLogout();
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -17,7 +15,22 @@ export function RootLayout() {
           <img src="/favicon.svg" alt="" className="size-6 rounded-md" />
           <span>{t.appName}</span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          {me.data ? (
+            <>
+              <span className="text-sm text-muted-foreground">{me.data.displayName}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => logout.mutate()}
+                disabled={logout.isPending}
+              >
+                {t.common.logout}
+              </Button>
+            </>
+          ) : null}
+          <ThemeToggle />
+        </div>
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <Outlet />

@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMe } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
 import { fetchHealth } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useConnectionStore } from '@/stores/connection';
 
 export function HomePage() {
+  const me = useMe();
   const health = useQuery({ queryKey: ['health'], queryFn: fetchHealth, refetchInterval: 15_000 });
   const status = useConnectionStore((state) => state.status);
 
@@ -23,17 +25,24 @@ export function HomePage() {
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">{t.appName}</h1>
-        <p className="text-muted-foreground">{t.tagline}</p>
+        <h1 className="text-2xl font-semibold">
+          {me.data ? t.home.greeting(me.data.displayName) : t.appName}
+        </h1>
+        <p className="text-muted-foreground">{t.home.placeholder}</p>
       </div>
 
-      <dl className="divide-y divide-border rounded-xl border border-border">
-        <StatusRow label={t.status.server} value={serverLabel} ok={health.isSuccess} />
-        <StatusRow label={t.status.database} value={databaseLabel} ok={health.data?.db === 'ok'} />
-        <StatusRow label={t.status.realtime} value={t.status[status]} ok={status === 'online'} />
-      </dl>
-
-      <p className="text-sm text-muted-foreground">{t.footer}</p>
+      <div className="space-y-2">
+        <h2 className="text-sm font-medium text-muted-foreground">{t.status.title}</h2>
+        <dl className="divide-y divide-border rounded-xl border border-border">
+          <StatusRow label={t.status.server} value={serverLabel} ok={health.isSuccess} />
+          <StatusRow
+            label={t.status.database}
+            value={databaseLabel}
+            ok={health.data?.db === 'ok'}
+          />
+          <StatusRow label={t.status.realtime} value={t.status[status]} ok={status === 'online'} />
+        </dl>
+      </div>
     </section>
   );
 }
