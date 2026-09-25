@@ -69,6 +69,17 @@ NODE_ENV=production pnpm start
 
 单个进程同时提供 `/api/*`、`/socket.io` 和前端静态文件。Railway 会注入 `PORT`，其余环境变量见 `apps/server/.env.example`。
 
+## 部署到 Railway
+
+仓库根目录的 `railway.json` 已写好构建命令、启动命令和 `/api/health` 健康检查，Railway 会从 `.nvmrc` 和 `packageManager` 读取 Node 24 与 pnpm 版本。服务启动时自动执行数据库迁移。
+
+1. 在 Neon 新建项目（区域 Singapore，Postgres 17），复制直连的连接串。
+2. Railway 里 New Project，选择 Deploy from GitHub repo，选中 `beechat`。
+3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`。
+4. Settings 里 Networking 一栏点 Generate Domain，得到公网地址。
+
+之后每次推送到 `main` 都会自动重新部署。
+
 ## 许可证
 
 [MIT](LICENSE)

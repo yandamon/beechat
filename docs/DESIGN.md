@@ -227,4 +227,6 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 
 本地环境：Node 24、pnpm 12、git、VS Code（ESLint、Prettier、Tailwind CSS IntelliSense 扩展）、PostgreSQL 17（`winget install PostgreSQL.PostgreSQL.17`）。
 
+部署方式：Railway 通过 GitHub 集成自动部署 `main`，配置见仓库根目录 `railway.json`；数据库用 Neon 的直连连接串（非 pgbouncer 池化地址），迁移在服务启动时执行；环境变量 `NODE_ENV`、`DATABASE_URL`、`INVITE_CODE` 在 Railway 控制台设置，`PORT` 由平台注入。
+
 不需要：域名、设计稿、邮件或短信服务、微信开放平台资质。
