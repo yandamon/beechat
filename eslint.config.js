@@ -28,7 +28,13 @@ export default defineConfig([
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
-    files: ['apps/server/**/*.ts', 'packages/**/*.ts', '*.js'],
+    files: [
+      'apps/server/**/*.ts',
+      'packages/**/*.ts',
+      'apps/web/e2e/**/*.ts',
+      'apps/web/playwright.config.ts',
+      '*.js',
+    ],
     languageOptions: { globals: globals.node },
   },
 ]);

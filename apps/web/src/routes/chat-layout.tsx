@@ -1,13 +1,15 @@
-import { Users } from 'lucide-react';
+import { Users, WifiOff } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link, Outlet, useMatch } from 'react-router';
 import { ConversationList } from '@/components/chat/conversation-list';
 import { CreateGroupDialog } from '@/components/chat/create-group-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
-import { useFriendRequests } from '@/features/chat/queries';
+import { useConversations, useFriendRequests } from '@/features/chat/queries';
 import { useRealtimeSync } from '@/features/chat/use-realtime-sync';
 import { t } from '@/i18n/zh-CN';
 import { cn } from '@/lib/utils';
+import { useConnectionStore } from '@/stores/connection';
 
 /** 登录后的主界面：左侧会话列表，右侧当前页面；手机上二选一显示 */
 export function ChatLayout() {
@@ -17,12 +19,35 @@ export function ChatLayout() {
 
   const requests = useFriendRequests();
   const incomingCount = requests.data?.incoming.length ?? 0;
+  const connection = useConnectionStore();
+  const showOffline = connection.everConnected && connection.status !== 'online';
+
+  // 标签页标题带上总未读数
+  const conversations = useConversations();
+  const totalUnread =
+    conversations.data?.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0;
+  useEffect(() => {
+    document.title =
+      totalUnread > 0 ? `(${t.chat.unreadBadge(totalUnread)}) ${t.appName}` : t.appName;
+    return () => {
+      document.title = t.appName;
+    };
+  }, [totalUnread]);
   const inConversation = useMatch('/c/:conversationId') !== null;
   const inFriends = useMatch('/friends') !== null;
   const showListOnMobile = !inConversation && !inFriends;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0">
+    <div className="relative flex h-[calc(100dvh-3.5rem)] min-h-0">
+      {showOffline ? (
+        <div
+          role="status"
+          className="absolute inset-x-0 top-0 z-20 flex items-center justify-center gap-2 bg-amber-500/90 px-4 py-1.5 text-xs font-medium text-black"
+        >
+          <WifiOff className="size-3.5" />
+          {connection.status === 'connecting' ? t.chat.reconnecting : t.chat.disconnected}
+        </div>
+      ) : null}
       <aside
         className={cn(
           'w-full shrink-0 flex-col border-r border-border md:flex md:w-80',

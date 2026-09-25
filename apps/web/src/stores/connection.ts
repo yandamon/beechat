@@ -5,11 +5,16 @@ export type ConnectionStatus = 'connecting' | 'online' | 'offline';
 
 interface ConnectionState {
   status: ConnectionStatus;
+  /** 是否曾经连上过；首次连接前不显示“断线”提示 */
+  everConnected: boolean;
 }
 
-export const useConnectionStore = create<ConnectionState>(() => ({ status: 'offline' }));
+export const useConnectionStore = create<ConnectionState>(() => ({
+  status: 'offline',
+  everConnected: false,
+}));
 
-socket.on('connect', () => useConnectionStore.setState({ status: 'online' }));
+socket.on('connect', () => useConnectionStore.setState({ status: 'online', everConnected: true }));
 socket.on('disconnect', () => useConnectionStore.setState({ status: 'offline' }));
 socket.io.on('reconnect_attempt', () => useConnectionStore.setState({ status: 'connecting' }));
 socket.on('connect_error', (error) => {

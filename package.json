@@ -17,7 +17,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "e2e": "pnpm --filter @beechat/web e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

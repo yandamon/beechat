@@ -63,6 +63,8 @@ export const t = {
     formerMember: '已退出的成员',
     me: '我',
     emoji: '表情',
+    reconnecting: '连接已断开，正在重连…',
+    disconnected: '连接已断开，请检查网络',
     image: '发送图片',
     imageAlt: '图片',
     openImage: '查看大图',

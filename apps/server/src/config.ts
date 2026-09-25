@@ -22,6 +22,11 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_URL: z.url().optional(),
+  /** 限流开关；端到端测试里关掉 */
+  RATE_LIMIT: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
   /** 是否开放演示账号一键登录 */
   DEMO_ENABLED: z
     .enum(['true', 'false'])

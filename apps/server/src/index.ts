@@ -10,7 +10,7 @@ const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const { db, pool } = createDb(config.DATABASE_URL);
 await runMigrations(db, MIGRATIONS_DIR);
 
-const app = await buildApp({ db });
+const app = await buildApp({ db, rateLimit: config.RATE_LIMIT });
 app.addHook('onClose', async () => {
   await pool.end();
 });

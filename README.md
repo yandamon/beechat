@@ -6,8 +6,8 @@
 
 ## 当前进度
 
-- 已完成：账号注册登录、演示账号一键登录（数据每天重置）、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、消息实时收发与幂等重试、表情选择器、历史分页、未读数与多端已读同步、在线状态、正在输入、深色模式、PWA 可安装、Railway 部署。
-- 进行中：图片消息、头像、端到端测试。
+- 已完成：账号注册登录、演示账号一键登录（数据每天重置）、个人资料（显示名、头像、退出所有设备）、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、文本与图片消息、表情选择器、消息实时收发与幂等重试、历史分页、未读数与多端已读同步、在线状态、正在输入、断线提示、深色模式、PWA 可安装、Railway 部署、Playwright 端到端测试。
+- 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）；之后是 v1.1 的已读回执、撤回、引用、消息回应、推送通知等。
 - 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
 
 ## 技术栈
@@ -64,6 +64,39 @@ pnpm dev
 | `pnpm start`                                | 以生产模式启动后端，并托管已构建的前端 |
 | `pnpm --filter @beechat/server db:generate` | 根据 schema 变更生成迁移文件           |
 | `pnpm --filter @beechat/server db:studio`   | 打开 Drizzle Studio 查看数据           |
+
+## 图片存储
+
+图片和头像在浏览器里压缩后直传到对象存储，服务器不经手文件字节。存储驱动由 `STORAGE_DRIVER` 决定：
+
+- `local`（默认）：文件存在 `UPLOADS_DIR`，由本服务在 `/uploads/` 下提供。适合开发；Railway 的磁盘是临时的，重新部署后文件会丢。
+- `r2`：存到 Cloudflare R2。需要在 Railway 里设置 `STORAGE_DRIVER=r2` 以及 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`R2_BUCKET`、`R2_PUBLIC_URL`。
+
+R2 的准备步骤：
+
+1. 在 R2 里新建桶 `beechat`，在桶的 Settings 里开启公开访问（r2.dev 域名或自定义域名），得到的地址就是 `R2_PUBLIC_URL`（不带末尾斜杠）。
+2. 在同一页的 CORS Policy 里允许站点来源的直传：
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://beechat-production-a1d7.up.railway.app"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+3. 在 R2 的 Manage API Tokens 里创建一个只对这个桶有 Object Read & Write 权限的令牌，拿到 Access Key ID 和 Secret Access Key；Account ID 在 R2 概览页右侧。
+
+## 端到端测试
+
+`pnpm e2e` 会用 `NODE_ENV=test` 拉起后端（读取 `apps/server/.env.test`）和前端开发服务器，先清空测试库，再用真实浏览器跑注册、加好友、实时聊天、群聊和演示账号。首次运行前安装浏览器：
+
+```bash
+pnpm --filter @beechat/web exec playwright install chromium
+```
 
 ## 生产运行
 

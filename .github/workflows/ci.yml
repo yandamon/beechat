@@ -24,6 +24,10 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://beechat:beechat_dev@localhost:5432/beechat_test
+      INVITE_CODE: test-invite
+      STORAGE_DRIVER: local
+      UPLOADS_DIR: ./uploads-test
+      RATE_LIMIT: 'false'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,3 +41,46 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test
       - run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: beechat
+          POSTGRES_PASSWORD: beechat_dev
+          POSTGRES_DB: beechat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U beechat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      DATABASE_URL: postgres://beechat:beechat_dev@localhost:5432/beechat_test
+      INVITE_CODE: test-invite
+      STORAGE_DRIVER: local
+      UPLOADS_DIR: ./uploads-test
+      RATE_LIMIT: 'false'
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @beechat/web exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
