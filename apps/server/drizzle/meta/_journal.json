@@ -15,6 +15,13 @@
       "when": 1790359258816,
       "tag": "0001_faithful_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790363553750,
+      "tag": "0002_useful_ezekiel",
+      "breakpoints": true
     }
   ]
 }

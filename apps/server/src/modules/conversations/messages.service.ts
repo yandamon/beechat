@@ -3,11 +3,18 @@ import type { MessagePage, MessageView, MessagesQuery, SendMessageInput } from '
 import { and, asc, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import type { AppContext } from '../../context';
 import type { DbLike } from '../../db/client';
-import { conversationMembers, conversations, type Message, messages } from '../../db/schema';
+import {
+  type AttachmentMeta,
+  conversationMembers,
+  conversations,
+  type Message,
+  messages,
+} from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { toMessageView } from '../../lib/views';
 import { conversationRoom } from '../../realtime/rooms';
 import { areFriends } from '../friends/friends.repo';
+import { requireCompletedUpload } from '../uploads/uploads.service';
 import { assertMember } from './conversations.service';
 
 /** 系统消息：没有发送者，例如“你们已经成为好友” */
@@ -44,6 +51,7 @@ export async function insertSystemMessage(
 /**
  * 发送消息：校验成员与好友关系，按 clientId 幂等落库，
  * 更新会话时间与发送者的已读位置，然后广播给会话房间。
+ * 图片消息引用一次已完成的上传，服务端不经手图片字节。
  */
 export async function sendMessage(
   ctx: AppContext,
@@ -73,6 +81,20 @@ export async function sendMessage(
     }
   }
 
+  let attachment: { key: string; meta: AttachmentMeta } | null = null;
+  if (input.type === 'image') {
+    const upload = await requireCompletedUpload(db, input.attachmentKey, senderId, 'image');
+    attachment = {
+      key: upload.key,
+      meta: {
+        width: upload.width ?? 0,
+        height: upload.height ?? 0,
+        size: upload.size,
+        mime: upload.mime,
+      },
+    };
+  }
+
   const result = await db.transaction(async (tx) => {
     const [inserted] = await tx
       .insert(messages)
@@ -80,7 +102,9 @@ export async function sendMessage(
         conversationId,
         senderId,
         type: input.type,
-        content: input.content,
+        content: input.type === 'text' ? input.content : null,
+        attachmentKey: attachment?.key ?? null,
+        attachmentMeta: attachment?.meta ?? null,
         clientId: input.clientId,
       })
       .onConflictDoNothing({ target: [messages.senderId, messages.clientId] })

@@ -22,13 +22,21 @@ export interface ReadEvent {
   messageId: number;
 }
 
-export interface SendMessagePayload {
-  conversationId: number;
-  /** 客户端生成的 UUID，重试时复用即可去重 */
-  clientId: string;
-  type: 'text';
-  content: string;
-}
+export type SendMessagePayload =
+  | {
+      conversationId: number;
+      /** 客户端生成的 UUID，重试时复用即可去重 */
+      clientId: string;
+      type: 'text';
+      content: string;
+    }
+  | {
+      conversationId: number;
+      clientId: string;
+      type: 'image';
+      /** 上传完成后拿到的 key */
+      attachmentKey: string;
+    };
 
 export type SendMessageAck =
   { ok: true; message: MessageView } | { ok: false; code: string; message: string };

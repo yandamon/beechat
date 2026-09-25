@@ -19,10 +19,13 @@ import { registerErrorHandler } from './lib/errors';
 import { authRoutes } from './modules/auth/auth.routes';
 import { conversationsRoutes } from './modules/conversations/conversations.routes';
 import { friendsRoutes } from './modules/friends/friends.routes';
+import { uploadsRoutes } from './modules/uploads/uploads.routes';
 import { usersRoutes } from './modules/users/users.routes';
 import { authPlugin } from './plugins/auth';
 import { registerRealtimeHandlers } from './realtime/handlers';
 import { createRealtime } from './realtime/server';
+import { createStorage } from './storage';
+import { LocalStorageDriver } from './storage/local';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -81,7 +84,8 @@ export async function buildApp({
     log: base.log,
     presenceGraceMs,
   });
-  const ctx: AppContext = { db, io, presence, log: base.log };
+  const storage = createStorage();
+  const ctx: AppContext = { db, io, presence, storage, log: base.log };
   base.decorate('ctx', ctx);
   base.decorate('io', io);
   base.addHook('onClose', async () => {
@@ -97,6 +101,18 @@ export async function buildApp({
   await app.register(usersRoutes, { prefix: '/api/users' });
   await app.register(friendsRoutes, { prefix: '/api/friends' });
   await app.register(conversationsRoutes, { prefix: '/api/conversations' });
+  await app.register(uploadsRoutes, { prefix: '/api/uploads' });
+
+  // 本地存储驱动时由本服务提供图片；键名唯一，可以长期缓存
+  if (storage instanceof LocalStorageDriver) {
+    await app.register(fastifyStatic, {
+      root: storage.uploadsDir,
+      prefix: '/uploads/',
+      decorateReply: false,
+      immutable: true,
+      maxAge: '1y',
+    });
+  }
 
   app.get('/api/health', async (_request, reply) => {
     let dbStatus: 'ok' | 'error' = 'ok';

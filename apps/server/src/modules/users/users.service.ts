@@ -1,8 +1,9 @@
-import type { RelationStatus, UserSearchResult } from '@beechat/shared';
+import type { RelationStatus, UpdateProfileInput, UserSearchResult } from '@beechat/shared';
 import { and, eq, ilike, inArray, or } from 'drizzle-orm';
 import type { AppContext } from '../../context';
-import { friendRequests, friendships, users } from '../../db/schema';
+import { friendRequests, friendships, type User, users } from '../../db/schema';
 import { toPublicUser } from '../../lib/views';
+import { requireCompletedUpload } from '../uploads/uploads.service';
 
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
 
@@ -58,4 +59,23 @@ export async function searchUsers(
     ...toPublicUser(row),
     relation: row.id === meId ? 'self' : (relations.get(row.id) ?? 'none'),
   }));
+}
+
+/** 修改显示名或头像；头像必须是本人已完成的 avatar 类型上传 */
+export async function updateProfile(
+  ctx: AppContext,
+  me: User,
+  input: UpdateProfileInput,
+): Promise<User> {
+  const patch: { displayName?: string; avatarKey?: string | null } = {};
+  if (input.displayName !== undefined) patch.displayName = input.displayName;
+  if (input.avatarKey !== undefined) {
+    if (input.avatarKey !== null) {
+      await requireCompletedUpload(ctx.db, input.avatarKey, me.id, 'avatar');
+    }
+    patch.avatarKey = input.avatarKey;
+  }
+  if (Object.keys(patch).length === 0) return me;
+  const [updated] = await ctx.db.update(users).set(patch).where(eq(users.id, me.id)).returning();
+  return updated ?? me;
 }

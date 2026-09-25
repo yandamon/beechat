@@ -44,6 +44,7 @@ export default defineConfig({
     // 开发时把接口和 WebSocket 转发到后端，保持同源
     proxy: {
       '/api': 'http://localhost:3000',
+      '/uploads': 'http://localhost:3000',
       '/socket.io': { target: 'ws://localhost:3000', ws: true },
     },
   },

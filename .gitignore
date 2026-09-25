@@ -28,3 +28,6 @@ Thumbs.db
 
 # claude local tooling
 .claude/
+
+# local storage driver for tests
+uploads-test/

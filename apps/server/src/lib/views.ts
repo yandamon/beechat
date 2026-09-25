@@ -1,26 +1,36 @@
 import type { MessageView, PublicUser } from '@beechat/shared';
 import type { Message, User } from '../db/schema';
+import { publicUrlFor } from '../storage';
 
 export function toPublicUser(user: User): PublicUser {
   return {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
-    // 头像地址在对象存储接入后由 avatarKey 生成
-    avatarUrl: null,
+    avatarUrl: user.avatarKey ? publicUrlFor(user.avatarKey) : null,
     createdAt: user.createdAt.toISOString(),
   };
 }
 
 export function toMessageView(message: Message): MessageView {
+  const meta = message.attachmentMeta;
+  const attachment =
+    message.attachmentKey && meta && !message.deletedAt
+      ? {
+          url: publicUrlFor(message.attachmentKey),
+          width: meta.width,
+          height: meta.height,
+          size: meta.size,
+          mime: meta.mime,
+        }
+      : null;
   return {
     id: message.id,
     conversationId: message.conversationId,
     senderId: message.senderId,
     type: message.type,
     content: message.deletedAt ? null : message.content,
-    // 图片上传接入后由 attachmentKey 和 attachmentMeta 生成
-    attachment: null,
+    attachment,
     clientId: message.clientId,
     createdAt: message.createdAt.toISOString(),
     deletedAt: message.deletedAt?.toISOString() ?? null,

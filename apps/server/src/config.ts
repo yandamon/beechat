@@ -14,6 +14,14 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ error: '缺少 DATABASE_URL，请参考 .env.example' }),
   INVITE_CODE: z.string().min(1, '缺少 INVITE_CODE，请参考 .env.example'),
+  /** 图片存储：local 存本地磁盘（开发或临时用），r2 存 Cloudflare R2 */
+  STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
+  UPLOADS_DIR: z.string().default('./uploads'),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_PUBLIC_URL: z.url().optional(),
   /** 是否开放演示账号一键登录 */
   DEMO_ENABLED: z
     .enum(['true', 'false'])
@@ -23,4 +31,22 @@ const envSchema = z.object({
 
 export type Config = z.infer<typeof envSchema>;
 
-export const config: Config = envSchema.parse(process.env);
+export const config: Config = envSchema
+  .superRefine((value, ctx) => {
+    if (value.STORAGE_DRIVER !== 'r2') return;
+    for (const key of [
+      'R2_ACCOUNT_ID',
+      'R2_ACCESS_KEY_ID',
+      'R2_SECRET_ACCESS_KEY',
+      'R2_BUCKET',
+      'R2_PUBLIC_URL',
+    ] as const) {
+      if (!value[key])
+        ctx.addIssue({
+          code: 'custom',
+          message: `STORAGE_DRIVER=r2 时必须设置 ${key}`,
+          path: [key],
+        });
+    }
+  })
+  .parse(process.env);

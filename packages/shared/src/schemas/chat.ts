@@ -4,7 +4,7 @@ import { LIMITS } from '../constants';
 const positiveId = z.number().int().positive();
 const coercedId = z.coerce.number().int().positive();
 
-export const sendMessageSchema = z.object({
+const sendTextSchema = z.object({
   conversationId: positiveId,
   clientId: z.uuid('clientId 必须是 UUID'),
   type: z.literal('text'),
@@ -14,6 +14,16 @@ export const sendMessageSchema = z.object({
     .min(1, '消息不能为空')
     .max(LIMITS.messageText.max, `消息最多 ${LIMITS.messageText.max} 字`),
 });
+
+/** 图片消息：先走上传接口拿到 key，再把 key 发过来 */
+const sendImageSchema = z.object({
+  conversationId: positiveId,
+  clientId: z.uuid('clientId 必须是 UUID'),
+  type: z.literal('image'),
+  attachmentKey: z.string().min(1).max(200),
+});
+
+export const sendMessageSchema = z.discriminatedUnion('type', [sendTextSchema, sendImageSchema]);
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
 export const typingSchema = z.object({ conversationId: positiveId });

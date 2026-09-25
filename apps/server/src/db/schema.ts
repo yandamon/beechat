@@ -28,6 +28,7 @@ export const friendshipStatus = pgEnum('friendship_status', ['friend', 'blocked'
 export const conversationType = pgEnum('conversation_type', ['direct', 'group']);
 export const memberRole = pgEnum('member_role', ['owner', 'member']);
 export const messageType = pgEnum('message_type', ['text', 'image', 'system']);
+export const uploadKind = pgEnum('upload_kind', ['image', 'avatar']);
 
 const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow();
 
@@ -182,8 +183,11 @@ export const uploads = pgTable(
     ownerId: integer()
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    kind: uploadKind().notNull().default('image'),
     mime: text().notNull(),
     size: integer().notNull(),
+    width: integer(),
+    height: integer(),
     completedAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
   },
