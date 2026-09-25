@@ -29,6 +29,7 @@ export type SendMessagePayload =
       clientId: string;
       type: 'text';
       content: string;
+      replyToId?: number;
     }
   | {
       conversationId: number;
@@ -36,6 +37,7 @@ export type SendMessagePayload =
       type: 'image';
       /** 上传完成后拿到的 key */
       attachmentKey: string;
+      replyToId?: number;
     };
 
 export type SendMessageAck =

@@ -12,6 +12,15 @@ export interface AttachmentView {
   mime: string;
 }
 
+/** 被引用消息的摘要，正文最多保留 80 字 */
+export interface ReplyPreview {
+  id: number;
+  senderId: number | null;
+  type: MessageType;
+  content: string | null;
+  deleted: boolean;
+}
+
 export interface MessageView {
   id: number;
   conversationId: number;
@@ -20,6 +29,8 @@ export interface MessageView {
   type: MessageType;
   content: string | null;
   attachment: AttachmentView | null;
+  /** 引用的消息；没有引用为 null */
+  replyTo: ReplyPreview | null;
   /** 客户端生成的幂等键 */
   clientId: string;
   createdAt: string;

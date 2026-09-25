@@ -1,14 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Composer } from '@/components/chat/composer';
+import { Composer, type QuoteBar } from '@/components/chat/composer';
 import { GroupInfoDialog } from '@/components/chat/group-info-dialog';
 import { MessageList } from '@/components/chat/message-list';
 import { UserAvatar } from '@/components/user-avatar';
 import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
-import { flattenMessages, markConversationRead } from '@/features/chat/cache';
+import { type LocalMessage, flattenMessages, markConversationRead } from '@/features/chat/cache';
 import { conversationName } from '@/features/chat/names';
 import {
   useConversations,
@@ -37,6 +37,10 @@ export function ChatWindow() {
   const typingUsers = useTypingUsers(conversationId);
   const { send, sendImage, retry } = useSendMessage(conversationId, meId);
   const recall = useRecallMessage(conversationId);
+  const [replyTarget, setReplyTarget] = useState<LocalMessage | null>(null);
+
+  // 切换会话时清掉正在回复的消息
+  useEffect(() => setReplyTarget(null), [conversationId]);
 
   // 告诉实时同步层当前开着哪个会话，它据此决定新消息算不算未读
   useEffect(() => {
@@ -66,6 +70,21 @@ export function ChatWindow() {
     () => new Map(conversation?.members.map((member) => [member.id, member.displayName]) ?? []),
     [conversation?.members],
   );
+
+  const nameOf = (senderId: number | null) => {
+    if (senderId === meId) return t.chat.me;
+    if (senderId === null) return t.chat.formerMember;
+    return memberNames.get(senderId) ?? t.chat.formerMember;
+  };
+  const quote: QuoteBar | null = replyTarget
+    ? {
+        name: nameOf(replyTarget.senderId),
+        preview:
+          replyTarget.type === 'image'
+            ? t.chat.imageMessage
+            : (replyTarget.content ?? t.chat.quotedDeleted),
+      }
+    : null;
 
   if (conversations.isPending) {
     return <p className="p-6 text-sm text-muted-foreground">{t.common.loading}</p>;
@@ -141,12 +160,30 @@ export function ChatWindow() {
         onLoadMore={() => void messagesQuery.fetchNextPage()}
         onRetry={retry}
         onRecall={(message) => recall.mutate(message.id)}
+        onReply={setReplyTarget}
+        nameOf={nameOf}
       />
 
       <Composer
         conversationId={conversationId}
-        onSend={send}
+        onSend={(content) => {
+          send(
+            content,
+            replyTarget
+              ? {
+                  id: replyTarget.id,
+                  senderId: replyTarget.senderId,
+                  type: replyTarget.type,
+                  content: replyTarget.content,
+                  deleted: replyTarget.deletedAt !== null,
+                }
+              : null,
+          );
+          setReplyTarget(null);
+        }}
         onSendImage={sendImage}
+        quote={quote}
+        onCancelQuote={() => setReplyTarget(null)}
         disabled={!stillFriends}
         disabledHint={t.chat.notFriendsAnymore}
       />

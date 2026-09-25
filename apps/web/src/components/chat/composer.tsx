@@ -1,5 +1,5 @@
 import { LIMITS } from '@beechat/shared';
-import { ImagePlus, SendHorizontal } from 'lucide-react';
+import { ImagePlus, SendHorizontal, X } from 'lucide-react';
 import {
   type ClipboardEvent,
   type FormEvent,
@@ -13,10 +13,18 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n/zh-CN';
 import { socket } from '@/lib/socket';
 
+export interface QuoteBar {
+  name: string;
+  preview: string;
+}
+
 interface ComposerProps {
   conversationId: number;
   onSend: (content: string) => void;
   onSendImage: (file: File) => void;
+  /** 正在回复的消息；有值时输入框上方显示引用条 */
+  quote?: QuoteBar | null;
+  onCancelQuote?: () => void;
   disabled?: boolean;
   disabledHint?: string;
 }
@@ -27,6 +35,8 @@ export function Composer({
   conversationId,
   onSend,
   onSendImage,
+  quote,
+  onCancelQuote,
   disabled,
   disabledHint,
 }: ComposerProps) {
@@ -55,6 +65,11 @@ export function Composer({
 
   // 切换会话或离开页面时收回“正在输入”
   useEffect(() => stopTyping, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 选择回复后把焦点放回输入框
+  useEffect(() => {
+    if (quote) textareaRef.current?.focus();
+  }, [quote]);
 
   // 输入框随内容长高，最多五行左右
   useEffect(() => {
@@ -126,51 +141,69 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex items-end gap-1 border-t border-border p-3">
-      <EmojiPicker onPick={insertAtCaret} />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onSendImage(file);
-          event.target.value = '';
-        }}
-      />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={t.chat.image}
-        title={t.chat.image}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <ImagePlus />
-      </Button>
-      <textarea
-        ref={textareaRef}
-        value={value}
-        rows={1}
-        maxLength={LIMITS.messageText.max}
-        placeholder={t.chat.inputPlaceholder}
-        aria-label={t.chat.inputPlaceholder}
-        onChange={(event) => {
-          setValue(event.target.value);
-          caretRef.current = event.target.selectionStart;
-          noteTyping();
-        }}
-        onSelect={rememberCaret}
-        onKeyUp={rememberCaret}
-        onClick={rememberCaret}
-        onKeyDown={onKeyDown}
-        onPaste={onPaste}
-        className="max-h-40 min-h-10 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      />
-      <Button type="submit" size="icon" aria-label={t.chat.send} disabled={!value.trim()}>
-        <SendHorizontal />
-      </Button>
+    <form onSubmit={onSubmit} className="border-t border-border p-3">
+      {quote ? (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border-l-2 border-primary bg-muted/60 px-3 py-1.5 text-xs">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-primary">{t.chat.replyingTo(quote.name)}</p>
+            <p className="truncate text-muted-foreground">{quote.preview}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelQuote}
+            aria-label={t.chat.cancelReply}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+      <div className="flex items-end gap-1">
+        <EmojiPicker onPick={insertAtCaret} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onSendImage(file);
+            event.target.value = '';
+          }}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t.chat.image}
+          title={t.chat.image}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <ImagePlus />
+        </Button>
+        <textarea
+          ref={textareaRef}
+          value={value}
+          rows={1}
+          maxLength={LIMITS.messageText.max}
+          placeholder={t.chat.inputPlaceholder}
+          aria-label={t.chat.inputPlaceholder}
+          onChange={(event) => {
+            setValue(event.target.value);
+            caretRef.current = event.target.selectionStart;
+            noteTyping();
+          }}
+          onSelect={rememberCaret}
+          onKeyUp={rememberCaret}
+          onClick={rememberCaret}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          className="max-h-40 min-h-10 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        />
+        <Button type="submit" size="icon" aria-label={t.chat.send} disabled={!value.trim()}>
+          <SendHorizontal />
+        </Button>
+      </div>
     </form>
   );
 }

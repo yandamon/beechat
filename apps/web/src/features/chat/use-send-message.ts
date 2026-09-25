@@ -1,4 +1,4 @@
-import type { SendMessageAck, SendMessagePayload } from '@beechat/shared';
+import type { ReplyPreview, SendMessageAck, SendMessagePayload } from '@beechat/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { socket } from '@/lib/socket';
@@ -45,7 +45,7 @@ export function useSendMessage(conversationId: number, meId: number) {
   );
 
   const send = useCallback(
-    (content: string) => {
+    (content: string, replyTo: ReplyPreview | null = null) => {
       const clientId = crypto.randomUUID();
       insertOptimistic({
         // 负数 id 表示尚未落库，服务端确认后会被替换
@@ -55,12 +55,19 @@ export function useSendMessage(conversationId: number, meId: number) {
         type: 'text',
         content,
         attachment: null,
+        replyTo,
         clientId,
         createdAt: new Date().toISOString(),
         deletedAt: null,
         pending: true,
       });
-      transmit({ conversationId, clientId, type: 'text', content });
+      transmit({
+        conversationId,
+        clientId,
+        type: 'text',
+        content,
+        ...(replyTo ? { replyToId: replyTo.id } : {}),
+      });
     },
     [conversationId, meId, insertOptimistic, transmit],
   );
@@ -95,6 +102,7 @@ export function useSendMessage(conversationId: number, meId: number) {
           size: file.size,
           mime: file.type,
         },
+        replyTo: null,
         clientId,
         createdAt: new Date().toISOString(),
         deletedAt: null,
@@ -120,6 +128,7 @@ export function useSendMessage(conversationId: number, meId: number) {
         clientId: message.clientId,
         type: 'text',
         content: message.content ?? '',
+        ...(message.replyTo ? { replyToId: message.replyTo.id } : {}),
       });
     },
     [conversationId, queryClient, transmit, uploadAndTransmit],

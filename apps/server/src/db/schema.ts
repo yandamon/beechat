@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   index,
   integer,
@@ -164,6 +165,10 @@ export const messages = pgTable(
     content: text(),
     attachmentKey: text(),
     attachmentMeta: jsonb().$type<AttachmentMeta>(),
+    /** 引用的消息；被引用的消息删除后置空 */
+    replyToId: bigint({ mode: 'number' }).references((): AnyPgColumn => messages.id, {
+      onDelete: 'set null',
+    }),
     /** 客户端生成的幂等键，重试不会产生重复消息 */
     clientId: uuid().notNull(),
     deletedAt: timestamp({ withTimezone: true }),

@@ -8,6 +8,8 @@ const sendTextSchema = z.object({
   conversationId: positiveId,
   clientId: z.uuid('clientId 必须是 UUID'),
   type: z.literal('text'),
+  /** 引用同一会话里的某条消息 */
+  replyToId: positiveId.optional(),
   content: z
     .string()
     .trim()
@@ -20,6 +22,7 @@ const sendImageSchema = z.object({
   conversationId: positiveId,
   clientId: z.uuid('clientId 必须是 UUID'),
   type: z.literal('image'),
+  replyToId: positiveId.optional(),
   attachmentKey: z.string().min(1).max(200),
 });
 

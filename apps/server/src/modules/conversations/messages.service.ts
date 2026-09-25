@@ -6,7 +6,7 @@ import {
   type MessagesQuery,
   type SendMessageInput,
 } from '@beechat/shared';
-import { and, asc, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { AppContext } from '../../context';
 import type { DbLike } from '../../db/client';
 import {
@@ -88,6 +88,17 @@ export async function sendMessage(
     }
   }
 
+  let replyTo: Message | null = null;
+  if (input.replyToId !== undefined) {
+    const [quoted] = await db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.id, input.replyToId), eq(messages.conversationId, conversationId)))
+      .limit(1);
+    if (!quoted) throw new AppError(400, '引用的消息不存在', 'REPLY_NOT_FOUND');
+    replyTo = quoted;
+  }
+
   let attachment: { key: string; meta: AttachmentMeta } | null = null;
   if (input.type === 'image') {
     const upload = await requireCompletedUpload(db, input.attachmentKey, senderId, 'image');
@@ -112,6 +123,7 @@ export async function sendMessage(
         content: input.type === 'text' ? input.content : null,
         attachmentKey: attachment?.key ?? null,
         attachmentMeta: attachment?.meta ?? null,
+        replyToId: replyTo?.id ?? null,
         clientId: input.clientId,
       })
       .onConflictDoNothing({ target: [messages.senderId, messages.clientId] })
@@ -144,7 +156,7 @@ export async function sendMessage(
     return { message: inserted, duplicate: false };
   });
 
-  const view = toMessageView(result.message);
+  const view = toMessageView(result.message, replyTo);
   if (!result.duplicate) {
     io.to(conversationRoom(conversationId)).emit('message:new', view);
     maybeReplyAsBot(ctx, view);
@@ -170,7 +182,7 @@ export async function getMessages(
       .where(and(eq(messages.conversationId, conversationId), gt(messages.id, query.after)))
       .orderBy(asc(messages.id))
       .limit(limit + 1);
-    return { messages: rows.slice(0, limit).map(toMessageView), hasMore: rows.length > limit };
+    return { messages: await withReplies(db, rows.slice(0, limit)), hasMore: rows.length > limit };
   }
 
   const rows = await db
@@ -185,9 +197,22 @@ export async function getMessages(
     .orderBy(desc(messages.id))
     .limit(limit + 1);
   return {
-    messages: rows.slice(0, limit).reverse().map(toMessageView),
+    messages: await withReplies(db, rows.slice(0, limit).reverse()),
     hasMore: rows.length > limit,
   };
+}
+
+/** 一次查出这一页引用到的消息，拼进视图 */
+async function withReplies(db: DbLike, rows: Message[]): Promise<MessageView[]> {
+  const ids = [
+    ...new Set(rows.map((row) => row.replyToId).filter((id): id is number => id !== null)),
+  ];
+  const quoted =
+    ids.length > 0 ? await db.select().from(messages).where(inArray(messages.id, ids)) : [];
+  const byId = new Map(quoted.map((row) => [row.id, row]));
+  return rows.map((row) =>
+    toMessageView(row, row.replyToId ? (byId.get(row.replyToId) ?? null) : null),
+  );
 }
 
 /** 推进已读位置，只会向前不会后退；返回是否真的变了 */

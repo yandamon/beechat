@@ -1,4 +1,4 @@
-import type { MessageView, PublicUser } from '@beechat/shared';
+import type { MessageView, PublicUser, ReplyPreview } from '@beechat/shared';
 import type { Message, User } from '../db/schema';
 import { publicUrlFor } from '../storage';
 
@@ -12,7 +12,20 @@ export function toPublicUser(user: User): PublicUser {
   };
 }
 
-export function toMessageView(message: Message): MessageView {
+const REPLY_SNIPPET_LENGTH = 80;
+
+export function toReplyPreview(message: Message): ReplyPreview {
+  const deleted = message.deletedAt !== null;
+  return {
+    id: message.id,
+    senderId: message.senderId,
+    type: message.type,
+    content: deleted ? null : (message.content?.slice(0, REPLY_SNIPPET_LENGTH) ?? null),
+    deleted,
+  };
+}
+
+export function toMessageView(message: Message, replyTo: Message | null = null): MessageView {
   const meta = message.attachmentMeta;
   const attachment =
     message.attachmentKey && meta && !message.deletedAt
@@ -31,6 +44,7 @@ export function toMessageView(message: Message): MessageView {
     type: message.type,
     content: message.deletedAt ? null : message.content,
     attachment,
+    replyTo: replyTo ? toReplyPreview(replyTo) : null,
     clientId: message.clientId,
     createdAt: message.createdAt.toISOString(),
     deletedAt: message.deletedAt?.toISOString() ?? null,

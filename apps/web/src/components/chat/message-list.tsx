@@ -1,5 +1,5 @@
 import { type AttachmentView, LIMITS } from '@beechat/shared';
-import { Undo2 } from 'lucide-react';
+import { Reply, Undo2 } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { LocalMessage } from '@/features/chat/cache';
@@ -20,6 +20,9 @@ interface MessageListProps {
   onLoadMore: () => void;
   onRetry: (message: LocalMessage) => void;
   onRecall: (message: LocalMessage) => void;
+  onReply: (message: LocalMessage) => void;
+  /** 把发送者 id 变成名字，引用块和群消息都用它 */
+  nameOf: (senderId: number | null) => string;
 }
 
 /**
@@ -37,6 +40,8 @@ export function MessageList({
   onLoadMore,
   onRetry,
   onRecall,
+  onReply,
+  nameOf,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -130,6 +135,8 @@ export function MessageList({
                   read={message.id === lastReadOwnId}
                   onRetry={onRetry}
                   onRecall={onRecall}
+                  onReply={onReply}
+                  nameOf={nameOf}
                 />
               )}
             </li>
@@ -204,6 +211,13 @@ function ImageAttachment({
   );
 }
 
+/** 引用块里显示的摘要 */
+function quotePreview(reply: NonNullable<LocalMessage['replyTo']>): string {
+  if (reply.deleted) return t.chat.quotedDeleted;
+  if (reply.type === 'image') return t.chat.imageMessage;
+  return reply.content ?? '';
+}
+
 function Bubble({
   message,
   mine,
@@ -211,6 +225,8 @@ function Bubble({
   read,
   onRetry,
   onRecall,
+  onReply,
+  nameOf,
 }: {
   message: LocalMessage;
   mine: boolean;
@@ -218,6 +234,8 @@ function Bubble({
   read: boolean;
   onRetry: (message: LocalMessage) => void;
   onRecall: (message: LocalMessage) => void;
+  onReply: (message: LocalMessage) => void;
+  nameOf: (senderId: number | null) => string;
 }) {
   const isImage = message.type === 'image' && message.attachment !== null;
   const canRecall =
@@ -243,9 +261,33 @@ function Bubble({
               message.pending && 'opacity-70',
             )}
           >
+            {message.replyTo ? (
+              <div
+                className={cn(
+                  'mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs',
+                  mine
+                    ? 'border-primary-foreground/60 bg-primary-foreground/15'
+                    : 'border-primary bg-background/60',
+                )}
+              >
+                <p className="font-medium">{nameOf(message.replyTo.senderId)}</p>
+                <p className="line-clamp-2 opacity-80">{quotePreview(message.replyTo)}</p>
+              </div>
+            ) : null}
             {message.content}
           </div>
         )}
+        {!message.pending && !message.failed && message.id > 0 ? (
+          <button
+            type="button"
+            onClick={() => onReply(message)}
+            title={t.chat.reply}
+            aria-label={t.chat.reply}
+            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
+          >
+            <Reply className="size-3.5" />
+          </button>
+        ) : null}
         {canRecall ? (
           <button
             type="button"
