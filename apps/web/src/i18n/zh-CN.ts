@@ -109,6 +109,11 @@ export const t = {
     displayNameHint: '别人看到的名字，可以随时改',
     logoutAll: '退出所有设备',
     logoutAllHint: '所有已登录的浏览器都会被退出',
+    dangerZone: '注销账号',
+    deleteHint: '账号、好友关系、私聊记录和上传的图片都会被删除，无法恢复。群聊会自动退出。',
+    deleteStart: '我要注销',
+    deletePassword: '输入密码确认',
+    deleteConfirm: '确认注销',
   },
   friends: {
     title: '好友',

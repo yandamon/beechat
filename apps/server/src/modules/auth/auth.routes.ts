@@ -1,7 +1,8 @@
-import { loginSchema, registerSchema } from '@beechat/shared';
+import { deleteAccountSchema, loginSchema, registerSchema } from '@beechat/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
 import { loginDemo } from '../demo/demo.service';
+import { deleteAccount } from './account.service';
 import { assertInviteCode, authenticateUser, registerUser, toPublicUser } from './auth.service';
 import { clearSessionCookie, deleteSession, deleteUserSessions } from './session.service';
 
@@ -57,6 +58,17 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     clearSessionCookie(reply);
     return { ok: true };
   });
+
+  app.delete(
+    '/me',
+    { preHandler: app.authenticate, schema: { body: deleteAccountSchema } },
+    async (request, reply) => {
+      const { user } = requireAuth(request);
+      await deleteAccount(app.ctx, user, request.body.password);
+      clearSessionCookie(reply);
+      return { ok: true };
+    },
+  );
 
   app.get('/me', { preHandler: app.authenticate }, async (request) => ({
     user: toPublicUser(requireAuth(request).user),

@@ -27,3 +27,7 @@ export const loginSchema = z.object({
   password: passwordSchema,
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/** 注销账号需要再输一次密码 */
+export const deleteAccountSchema = z.object({ password: passwordSchema });
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

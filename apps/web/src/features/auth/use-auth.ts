@@ -74,6 +74,14 @@ function useClearSession() {
   };
 }
 
+export function useDeleteAccount() {
+  const clearSession = useClearSession();
+  return useMutation({
+    mutationFn: (password: string) => authApi.deleteAccount(password),
+    onSuccess: clearSession,
+  });
+}
+
 export function useLogoutAll() {
   const clearSession = useClearSession();
   return useMutation({ mutationFn: () => authApi.logoutAll(), onSuccess: clearSession });

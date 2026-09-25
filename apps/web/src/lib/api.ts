@@ -82,6 +82,8 @@ export const authApi = {
   demo: () => api<AuthResponse>('/api/auth/demo', { method: 'POST' }),
   logout: () => api<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
   logoutAll: () => api<{ ok: true }>('/api/auth/logout-all', { method: 'POST' }),
+  deleteAccount: (password: string) =>
+    api<{ ok: true }>('/api/auth/me', { method: 'DELETE', body: { password } }),
 };
 
 export const usersApi = {

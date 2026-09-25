@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useLogoutAll, useUpdateProfile } from '@/features/auth/use-auth';
+import { useDeleteAccount, useLogoutAll, useUpdateProfile } from '@/features/auth/use-auth';
 import { uploadImage } from '@/features/chat/upload';
 import { t } from '@/i18n/zh-CN';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,9 @@ export function ProfileDialog({ user }: ProfileDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const update = useUpdateProfile();
   const logoutAll = useLogoutAll();
+  const deleteAccount = useDeleteAccount();
+  const [deleting, setDeleting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const isDemo = user.username === 'demo';
 
   const onAvatarPicked = async (file: File) => {
@@ -151,6 +154,61 @@ export function ProfileDialog({ user }: ProfileDialogProps) {
             {t.common.save}
           </Button>
         </form>
+
+        {!isDemo ? (
+          <section className="space-y-2 rounded-xl border border-destructive/40 p-3">
+            <p className="text-sm font-medium text-destructive">{t.profile.dangerZone}</p>
+            <p className="text-xs text-muted-foreground">{t.profile.deleteHint}</p>
+            {deleting ? (
+              <form
+                className="space-y-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  deleteAccount.mutate(deletePassword);
+                }}
+              >
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder={t.profile.deletePassword}
+                  aria-label={t.profile.deletePassword}
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleteAccount.isPending || deletePassword.length < 8}
+                  >
+                    {t.profile.deleteConfirm}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDeleting(false);
+                      setDeletePassword('');
+                    }}
+                  >
+                    {t.common.cancel}
+                  </Button>
+                </div>
+                {deleteAccount.error ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {deleteAccount.error.message}
+                  </p>
+                ) : null}
+              </form>
+            ) : (
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleting(true)}>
+                {t.profile.deleteStart}
+              </Button>
+            )}
+          </section>
+        ) : null}
 
         {error || update.error ? (
           <p className="text-sm text-destructive" role="alert">
