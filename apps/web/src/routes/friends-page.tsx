@@ -130,7 +130,7 @@ function SearchResultRow({ user }: { user: UserSearchResult }) {
 
   return (
     <li className="flex items-center gap-3 p-3">
-      <UserAvatar name={user.displayName} seed={user.id} />
+      <UserAvatar name={user.displayName} seed={user.id} src={user.avatarUrl} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{user.displayName}</p>
         <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
@@ -205,7 +205,7 @@ function RequestRow({
 }) {
   return (
     <li className="flex items-center gap-3 p-3">
-      <UserAvatar name={user.displayName} seed={user.id} />
+      <UserAvatar name={user.displayName} seed={user.id} src={user.avatarUrl} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{user.displayName}</p>
         <p className="truncate text-xs text-muted-foreground">
@@ -249,7 +249,12 @@ function FriendRow({ friend }: { friend: FriendView }) {
   };
   return (
     <li className="flex items-center gap-3 p-3">
-      <UserAvatar name={friend.displayName} seed={friend.id} online={friend.online} />
+      <UserAvatar
+        name={friend.displayName}
+        seed={friend.id}
+        src={friend.avatarUrl}
+        online={friend.online}
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{friend.displayName}</p>
         <p className="truncate text-xs text-muted-foreground">

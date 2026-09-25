@@ -110,7 +110,12 @@ function MembersSection({
       <ul className="divide-y divide-border rounded-xl border border-border">
         {conversation.members.map((member) => (
           <li key={member.id} className="flex items-center gap-3 px-3 py-2">
-            <UserAvatar name={member.displayName} seed={member.id} className="size-8" />
+            <UserAvatar
+              name={member.displayName}
+              seed={member.id}
+              src={member.avatarUrl}
+              className="size-8"
+            />
             <span className="min-w-0 flex-1 truncate text-sm">
               {member.displayName}
               {member.id === meId ? (

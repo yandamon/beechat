@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+import { ProfileDialog } from '@/components/profile-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useLogout, useMe } from '@/features/auth/use-auth';
@@ -15,17 +16,10 @@ export function RootLayout() {
           <img src="/favicon.svg" alt="" className="size-6 rounded-md" />
           <span>{t.appName}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {me.data ? (
             <>
-              <span className="text-sm text-muted-foreground">
-                {me.data.displayName}
-                {me.data.username === 'demo' ? (
-                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
-                    {t.auth.demoBadge}
-                  </span>
-                ) : null}
-              </span>
+              <ProfileDialog user={me.data} />
               <Button
                 variant="ghost"
                 size="sm"

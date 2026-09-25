@@ -30,7 +30,7 @@ export function ChatWindow() {
   const messagesQuery = useMessages(conversationId);
   const messages = useMemo(() => flattenMessages(messagesQuery.data), [messagesQuery.data]);
   const typingUsers = useTypingUsers(conversationId);
-  const { send, retry } = useSendMessage(conversationId, meId);
+  const { send, sendImage, retry } = useSendMessage(conversationId, meId);
 
   // 告诉实时同步层当前开着哪个会话，它据此决定新消息算不算未读
   useEffect(() => {
@@ -106,6 +106,7 @@ export function ChatWindow() {
         <UserAvatar
           name={conversationName(conversation)}
           seed={peer?.id ?? conversation.id}
+          src={peer?.avatarUrl ?? conversation.avatarUrl}
           className="size-8"
         />
         <div className="min-w-0 flex-1">
@@ -137,6 +138,7 @@ export function ChatWindow() {
       <Composer
         conversationId={conversationId}
         onSend={send}
+        onSendImage={sendImage}
         disabled={!stillFriends}
         disabledHint={t.chat.notFriendsAnymore}
       />

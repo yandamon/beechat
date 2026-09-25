@@ -9,7 +9,11 @@ import type {
   FriendView,
   LoginInput,
   MessagePage,
+  PresignUploadInput,
+  PresignedUpload,
   RegisterInput,
+  UpdateProfileInput,
+  UploadedAttachment,
   UserSearchResult,
 } from '@beechat/shared';
 
@@ -77,6 +81,18 @@ export const authApi = {
   demo: () => api<AuthResponse>('/api/auth/demo', { method: 'POST' }),
   logout: () => api<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
   logoutAll: () => api<{ ok: true }>('/api/auth/logout-all', { method: 'POST' }),
+};
+
+export const usersApi = {
+  updateProfile: (body: UpdateProfileInput) =>
+    api<AuthResponse>('/api/users/me', { method: 'PATCH', body }),
+};
+
+export const uploadsApi = {
+  presign: (body: PresignUploadInput) =>
+    api<PresignedUpload>('/api/uploads/presign', { method: 'POST', body }),
+  complete: (key: string) =>
+    api<UploadedAttachment>('/api/uploads/complete', { method: 'POST', body: { key } }),
 };
 
 export const friendsApi = {

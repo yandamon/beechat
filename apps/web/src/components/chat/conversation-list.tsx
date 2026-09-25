@@ -70,6 +70,7 @@ function ConversationItem({
         <UserAvatar
           name={conversationName(conversation)}
           seed={peer?.id ?? conversation.id}
+          src={peer?.avatarUrl ?? conversation.avatarUrl}
           online={peer?.online}
         />
         <div className="min-w-0 flex-1">

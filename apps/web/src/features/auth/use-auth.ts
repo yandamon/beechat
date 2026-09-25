@@ -1,6 +1,6 @@
-import type { LoginInput, PublicUser, RegisterInput } from '@beechat/shared';
+import type { LoginInput, PublicUser, RegisterInput, UpdateProfileInput } from '@beechat/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, authApi } from '@/lib/api';
+import { ApiError, authApi, usersApi } from '@/lib/api';
 import { disconnectSocket } from '@/stores/connection';
 
 export const ME_QUERY_KEY = ['me'] as const;
@@ -49,17 +49,37 @@ export function useDemoLogin() {
   });
 }
 
-export function useLogout() {
+export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => authApi.logout(),
-    onSuccess: () => {
-      disconnectSocket();
-      // 先把“当前用户”置空，所有订阅它的组件（包括路由守卫）都会收到通知并跳转；
-      // 不能用 queryClient.clear()：它会把查询对象整个移除，已挂载的订阅会失联
-      queryClient.setQueryData(ME_QUERY_KEY, null);
-      // 再丢掉上一个账号的其他缓存，避免下一个账号看到残留数据
-      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== ME_QUERY_KEY[0] });
+    mutationFn: (input: UpdateProfileInput) => usersApi.updateProfile(input),
+    onSuccess: ({ user }) => {
+      queryClient.setQueryData(ME_QUERY_KEY, user);
+      // 群成员列表和好友列表里也有我的名字和头像
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
   });
+}
+
+function useClearSession() {
+  const queryClient = useQueryClient();
+  return () => {
+    disconnectSocket();
+    // 先把“当前用户”置空，所有订阅它的组件（包括路由守卫）都会收到通知并跳转；
+    // 不能用 queryClient.clear()：它会把查询对象整个移除，已挂载的订阅会失联
+    queryClient.setQueryData(ME_QUERY_KEY, null);
+    // 再丢掉上一个账号的其他缓存，避免下一个账号看到残留数据
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== ME_QUERY_KEY[0] });
+  };
+}
+
+export function useLogoutAll() {
+  const clearSession = useClearSession();
+  return useMutation({ mutationFn: () => authApi.logoutAll(), onSuccess: clearSession });
+}
+
+export function useLogout() {
+  const clearSession = useClearSession();
+  return useMutation({ mutationFn: () => authApi.logout(), onSuccess: clearSession });
 }

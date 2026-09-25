@@ -63,6 +63,11 @@ export const t = {
     formerMember: '已退出的成员',
     me: '我',
     emoji: '表情',
+    image: '发送图片',
+    imageAlt: '图片',
+    openImage: '查看大图',
+    uploading: '上传中…',
+    imageFailed: '图片发送失败',
   },
   group: {
     create: '新建群聊',
@@ -84,6 +89,15 @@ export const t = {
     leave: '退出群聊',
     confirmLeave: (name: string) => `确定退出「${name}」吗？退出后你将不再收到这个群的消息。`,
     confirmKick: (name: string) => `确定把 ${name} 移出群聊吗？`,
+  },
+  profile: {
+    title: '个人资料',
+    changeAvatar: '更换头像',
+    removeAvatar: '移除头像',
+    displayName: '显示名',
+    displayNameHint: '别人看到的名字，可以随时改',
+    logoutAll: '退出所有设备',
+    logoutAllHint: '所有已登录的浏览器都会被退出',
   },
   friends: {
     title: '好友',

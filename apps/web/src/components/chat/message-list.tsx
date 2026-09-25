@@ -1,4 +1,6 @@
+import type { AttachmentView } from '@beechat/shared';
 import { useLayoutEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { LocalMessage } from '@/features/chat/cache';
 import { t } from '@/i18n/zh-CN';
 import { formatMessageTime } from '@/lib/format';
@@ -113,6 +115,62 @@ function SystemMessage({ message }: { message: LocalMessage }) {
   );
 }
 
+const IMAGE_MAX_WIDTH = 280;
+const IMAGE_MAX_HEIGHT = 320;
+
+/** 图片按比例缩到气泡里，点开看大图；尺寸未知（本地预览）时交给浏览器 */
+function ImageAttachment({
+  attachment,
+  pending,
+}: {
+  attachment: AttachmentView;
+  pending?: boolean;
+}) {
+  let style: { width?: number; height?: number } = {};
+  if (attachment.width > 0 && attachment.height > 0) {
+    const scale = Math.min(
+      1,
+      IMAGE_MAX_WIDTH / attachment.width,
+      IMAGE_MAX_HEIGHT / attachment.height,
+    );
+    style = {
+      width: Math.round(attachment.width * scale),
+      height: Math.round(attachment.height * scale),
+    };
+  }
+  return (
+    <Dialog>
+      <DialogTrigger
+        className={cn(
+          'block overflow-hidden rounded-xl bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+          pending && 'opacity-70',
+        )}
+        aria-label={t.chat.openImage}
+      >
+        <img
+          src={attachment.url}
+          alt={t.chat.imageAlt}
+          width={style.width}
+          height={style.height}
+          loading="lazy"
+          className="block max-h-80 max-w-[280px] object-cover"
+        />
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton
+        className="max-w-[92vw] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
+      >
+        <DialogTitle className="sr-only">{t.chat.imageAlt}</DialogTitle>
+        <img
+          src={attachment.url}
+          alt={t.chat.imageAlt}
+          className="mx-auto max-h-[88vh] max-w-full rounded-lg object-contain"
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Bubble({
   message,
   mine,
@@ -124,24 +182,29 @@ function Bubble({
   name: string | null;
   onRetry: (message: LocalMessage) => void;
 }) {
+  const isImage = message.type === 'image' && message.attachment !== null;
   return (
     <div className={cn('flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
       {name ? <span className="px-1 text-xs text-muted-foreground">{name}</span> : null}
-      <div
-        className={cn(
-          'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',
-          mine
-            ? 'rounded-br-md bg-primary text-primary-foreground'
-            : 'rounded-bl-md bg-muted text-foreground',
-          message.pending && 'opacity-70',
-        )}
-      >
-        {message.content}
-      </div>
+      {isImage && message.attachment ? (
+        <ImageAttachment attachment={message.attachment} pending={message.pending} />
+      ) : (
+        <div
+          className={cn(
+            'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',
+            mine
+              ? 'rounded-br-md bg-primary text-primary-foreground'
+              : 'rounded-bl-md bg-muted text-foreground',
+            message.pending && 'opacity-70',
+          )}
+        >
+          {message.content}
+        </div>
+      )}
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         {message.failed ? (
           <>
-            <span className="text-destructive">{t.chat.failed}</span>
+            <span className="text-destructive">{isImage ? t.chat.imageFailed : t.chat.failed}</span>
             <button
               type="button"
               className="underline underline-offset-2"
@@ -151,7 +214,7 @@ function Bubble({
             </button>
           </>
         ) : message.pending ? (
-          <span>{t.chat.sending}</span>
+          <span>{isImage ? t.chat.uploading : t.chat.sending}</span>
         ) : (
           <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
         )}

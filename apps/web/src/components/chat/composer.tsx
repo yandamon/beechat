@@ -1,6 +1,13 @@
 import { LIMITS } from '@beechat/shared';
-import { SendHorizontal } from 'lucide-react';
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { ImagePlus, SendHorizontal } from 'lucide-react';
+import {
+  type ClipboardEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { EmojiPicker } from '@/components/chat/emoji-picker';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n/zh-CN';
@@ -9,15 +16,23 @@ import { socket } from '@/lib/socket';
 interface ComposerProps {
   conversationId: number;
   onSend: (content: string) => void;
+  onSendImage: (file: File) => void;
   disabled?: boolean;
   disabledHint?: string;
 }
 
 const TYPING_IDLE_MS = 2_000;
 
-export function Composer({ conversationId, onSend, disabled, disabledHint }: ComposerProps) {
+export function Composer({
+  conversationId,
+  onSend,
+  onSendImage,
+  disabled,
+  disabledHint,
+}: ComposerProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const caretRef = useRef<number | null>(null);
   const typingRef = useRef(false);
   const idleTimerRef = useRef<number | undefined>(undefined);
@@ -92,6 +107,16 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
     }
   };
 
+  // 粘贴截图直接当图片发送
+  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const image = Array.from(event.clipboardData.files).find((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (!image) return;
+    event.preventDefault();
+    onSendImage(image);
+  };
+
   if (disabled) {
     return (
       <p className="border-t border-border px-4 py-3 text-center text-sm text-muted-foreground">
@@ -101,8 +126,29 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex items-end gap-2 border-t border-border p-3">
+    <form onSubmit={onSubmit} className="flex items-end gap-1 border-t border-border p-3">
       <EmojiPicker onPick={insertAtCaret} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onSendImage(file);
+          event.target.value = '';
+        }}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t.chat.image}
+        title={t.chat.image}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <ImagePlus />
+      </Button>
       <textarea
         ref={textareaRef}
         value={value}
@@ -119,6 +165,7 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
         onKeyUp={rememberCaret}
         onClick={rememberCaret}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
         className="max-h-40 min-h-10 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       />
       <Button type="submit" size="icon" aria-label={t.chat.send} disabled={!value.trim()}>
