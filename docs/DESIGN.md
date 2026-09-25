@@ -229,4 +229,6 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 
 部署方式：Railway 通过 GitHub 集成自动部署 `main`，配置见仓库根目录 `railway.json`；数据库用 Neon 的直连连接串（非 pgbouncer 池化地址），迁移在服务启动时执行；环境变量 `NODE_ENV`、`DATABASE_URL`、`INVITE_CODE` 在 Railway 控制台设置，`PORT` 由平台注入。
 
+已部署（2026-09-25）：Railway 项目 `beechat`、服务 `beechat`，仅新加坡区域，试用套餐只允许单区域；Neon 项目 `mute-scene-40761436`，新加坡，Postgres 17；线上地址 https://beechat-production-a1d7.up.railway.app 。Railway 提示 `railway.json` 这种 Config as Code 将于 2026-12-01 停用，届时迁移到 `.railway/railway.ts`。
+
 不需要：域名、设计稿、邮件或短信服务、微信开放平台资质。

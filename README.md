@@ -78,7 +78,7 @@ NODE_ENV=production pnpm start
 3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`。
 4. Settings 里 Networking 一栏点 Generate Domain，得到公网地址。
 
-之后每次推送到 `main` 都会自动重新部署。
+之后每次推送到 `main` 都会自动重新部署。当前线上地址：https://beechat-production-a1d7.up.railway.app
 
 ## 许可证
 
