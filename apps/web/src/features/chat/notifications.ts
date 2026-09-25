@@ -37,6 +37,8 @@ export function notifyNewMessage(
 ) {
   if (!notificationsSupported) return;
   if (!useNotificationStore.getState().enabled || Notification.permission !== 'granted') return;
+  // 免打扰的会话不弹通知
+  if (conversation?.muted) return;
 
   const title =
     conversation?.type === 'group'

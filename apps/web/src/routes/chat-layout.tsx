@@ -40,8 +40,12 @@ export function ChatLayout() {
 
   // 标签页标题带上总未读数
   const conversations = useConversations();
+  // 免打扰的会话不计入标题里的未读数
   const totalUnread =
-    conversations.data?.reduce((sum, conversation) => sum + conversation.unreadCount, 0) ?? 0;
+    conversations.data?.reduce(
+      (sum, conversation) => sum + (conversation.muted ? 0 : conversation.unreadCount),
+      0,
+    ) ?? 0;
   useEffect(() => {
     document.title =
       totalUnread > 0 ? `(${t.chat.unreadBadge(totalUnread)}) ${t.appName}` : t.appName;

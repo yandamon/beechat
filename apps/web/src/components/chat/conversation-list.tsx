@@ -1,4 +1,5 @@
 import type { ConversationView, MessageView } from '@beechat/shared';
+import { BellOff, Pin } from 'lucide-react';
 import { Link, useMatch } from 'react-router';
 import { UserAvatar } from '@/components/user-avatar';
 import { buttonVariants } from '@/components/ui/button';
@@ -58,7 +59,7 @@ function ConversationItem({
   conversation: ConversationView;
   active: boolean;
 }) {
-  const { peer, lastMessage, lastMessageAt, unreadCount } = conversation;
+  const { peer, lastMessage, lastMessageAt, unreadCount, pinned, muted } = conversation;
   return (
     <li>
       <Link
@@ -76,7 +77,18 @@ function ConversationItem({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate font-medium">{conversationName(conversation)}</span>
+            <span className="flex min-w-0 items-center gap-1 font-medium">
+              <span className="truncate">{conversationName(conversation)}</span>
+              {pinned ? (
+                <Pin className="size-3 shrink-0 text-muted-foreground" aria-label={t.chat.pin} />
+              ) : null}
+              {muted ? (
+                <BellOff
+                  className="size-3 shrink-0 text-muted-foreground"
+                  aria-label={t.chat.mute}
+                />
+              ) : null}
+            </span>
             {lastMessageAt ? (
               <time className="shrink-0 text-xs text-muted-foreground">
                 {formatListTime(lastMessageAt)}
@@ -86,7 +98,12 @@ function ConversationItem({
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm text-muted-foreground">{previewOf(lastMessage)}</p>
             {unreadCount > 0 ? (
-              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+              <span
+                className={cn(
+                  'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                  muted ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground',
+                )}
+              >
                 {t.chat.unreadBadge(unreadCount)}
               </span>
             ) : null}

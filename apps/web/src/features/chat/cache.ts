@@ -57,10 +57,12 @@ export function markMessageFailed(
   });
 }
 
+/** 置顶的排最前，其余按最后一条消息时间倒序 */
 export function sortConversations(list: ConversationView[]): ConversationView[] {
-  return [...list].sort((a, b) =>
-    (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt),
-  );
+  return [...list].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return (b.lastMessageAt ?? b.createdAt).localeCompare(a.lastMessageAt ?? a.createdAt);
+  });
 }
 
 export function upsertConversation(queryClient: QueryClient, view: ConversationView) {

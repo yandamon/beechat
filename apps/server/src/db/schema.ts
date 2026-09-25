@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
   bigint,
+  boolean,
   index,
   integer,
   jsonb,
@@ -136,6 +137,10 @@ export const conversationMembers = pgTable(
     role: memberRole().notNull().default('member'),
     /** 已读到的消息 ID，未读数 = 此后消息数 */
     lastReadMessageId: bigint({ mode: 'number' }),
+    /** 置顶：会话列表排最前 */
+    pinned: boolean().notNull().default(false),
+    /** 免打扰：不计未读、不发通知 */
+    muted: boolean().notNull().default(false),
     joinedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

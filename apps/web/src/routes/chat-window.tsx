@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, Pin, PinOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Composer, type QuoteBar } from '@/components/chat/composer';
@@ -15,6 +15,7 @@ import {
   useFriends,
   useMessages,
   useRecallMessage,
+  useUpdateMembership,
 } from '@/features/chat/queries';
 import { useActiveConversationStore, useTypingUsers } from '@/features/chat/stores';
 import { useSendMessage } from '@/features/chat/use-send-message';
@@ -37,6 +38,7 @@ export function ChatWindow() {
   const typingUsers = useTypingUsers(conversationId);
   const { send, sendImage, retry } = useSendMessage(conversationId, meId);
   const recall = useRecallMessage(conversationId);
+  const membership = useUpdateMembership(conversationId);
   const [replyTarget, setReplyTarget] = useState<LocalMessage | null>(null);
 
   // 切换会话时清掉正在回复的消息
@@ -145,6 +147,28 @@ export function ChatWindow() {
             {statusLine}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => membership.mutate({ pinned: !conversation.pinned })}
+          disabled={membership.isPending}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+          aria-label={conversation.pinned ? t.chat.unpin : t.chat.pin}
+          title={conversation.pinned ? t.chat.unpin : t.chat.pin}
+          aria-pressed={conversation.pinned}
+        >
+          {conversation.pinned ? <PinOff /> : <Pin />}
+        </button>
+        <button
+          type="button"
+          onClick={() => membership.mutate({ muted: !conversation.muted })}
+          disabled={membership.isPending}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+          aria-label={conversation.muted ? t.chat.unmute : t.chat.mute}
+          title={conversation.muted ? t.chat.unmute : t.chat.mute}
+          aria-pressed={conversation.muted}
+        >
+          {conversation.muted ? <BellOff /> : <Bell />}
+        </button>
         {isGroup ? <GroupInfoDialog conversation={conversation} meId={meId} /> : null}
       </header>
 

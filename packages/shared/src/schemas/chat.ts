@@ -82,3 +82,11 @@ export const addMembersSchema = z.object({
 export type AddMembersInput = z.infer<typeof addMembersSchema>;
 
 export const memberParamsSchema = z.object({ id: coercedId, userId: coercedId });
+
+/** 我对某个会话的个人设置 */
+export const updateMembershipSchema = z
+  .object({ pinned: z.boolean().optional(), muted: z.boolean().optional() })
+  .refine((value) => value.pinned !== undefined || value.muted !== undefined, {
+    message: '至少提供一个设置',
+  });
+export type UpdateMembershipInput = z.infer<typeof updateMembershipSchema>;

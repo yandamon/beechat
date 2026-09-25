@@ -63,6 +63,9 @@ export interface ConversationView {
   lastReadMessageId: number | null;
   /** 私聊里对方读到的位置，用于“已读”标记；群聊为 null */
   peerLastReadMessageId: number | null;
+  /** 我对这个会话的设置：置顶排在最前，免打扰不计未读也不通知 */
+  pinned: boolean;
+  muted: boolean;
   createdAt: string;
 }
 

@@ -6,6 +6,7 @@ import {
   messageParamsSchema,
   messagesQuerySchema,
   updateConversationSchema,
+  updateMembershipSchema,
 } from '@beechat/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
@@ -14,6 +15,7 @@ import {
   getConversationViews,
   openDirectConversation,
   requireConversationView,
+  updateMembership,
 } from './conversations.service';
 import { addMembers, createGroup, removeMember, renameGroup } from './groups.service';
 import { getMessages, recallMessage } from './messages.service';
@@ -57,6 +59,20 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
       const { user } = requireAuth(request);
       return {
         conversation: await renameGroup(app.ctx, user, request.params.id, request.body.name),
+      };
+    },
+  );
+
+  app.patch(
+    '/:id/membership',
+    {
+      preHandler: app.authenticate,
+      schema: { params: conversationIdParamSchema, body: updateMembershipSchema },
+    },
+    async (request) => {
+      const { user } = requireAuth(request);
+      return {
+        conversation: await updateMembership(app.ctx, user.id, request.params.id, request.body),
       };
     },
   );

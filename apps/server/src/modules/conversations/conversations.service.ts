@@ -103,6 +103,8 @@ export async function getConversationViews(
     .select({
       conversation: conversations,
       lastReadMessageId: conversationMembers.lastReadMessageId,
+      pinned: conversationMembers.pinned,
+      muted: conversationMembers.muted,
     })
     .from(conversationMembers)
     .innerJoin(conversations, eq(conversations.id, conversationMembers.conversationId))
@@ -112,7 +114,11 @@ export async function getConversationViews(
         conversationIds ? inArray(conversations.id, conversationIds) : undefined,
       ),
     )
-    .orderBy(sql`${conversations.lastMessageAt} desc nulls last`, desc(conversations.createdAt));
+    .orderBy(
+      desc(conversationMembers.pinned),
+      sql`${conversations.lastMessageAt} desc nulls last`,
+      desc(conversations.createdAt),
+    );
   if (base.length === 0) return [];
   const ids = base.map((row) => row.conversation.id);
 
@@ -122,6 +128,8 @@ export async function getConversationViews(
       role: conversationMembers.role,
       joinedAt: conversationMembers.joinedAt,
       lastReadMessageId: conversationMembers.lastReadMessageId,
+      pinned: conversationMembers.pinned,
+      muted: conversationMembers.muted,
       user: users,
     })
     .from(conversationMembers)
@@ -166,7 +174,7 @@ export async function getConversationViews(
   const lastByConversation = new Map(lastMessages.map((row) => [row.conversationId, row]));
   const unreadByConversation = new Map(unreadRows.map((row) => [row.conversationId, row.unread]));
 
-  return base.map(({ conversation, lastReadMessageId }) => {
+  return base.map(({ conversation, lastReadMessageId, pinned, muted }) => {
     const memberList = membersByConversation.get(conversation.id) ?? [];
     const peerMember =
       conversation.type === 'direct'
@@ -190,6 +198,8 @@ export async function getConversationViews(
       unreadCount: unreadByConversation.get(conversation.id) ?? 0,
       lastReadMessageId,
       peerLastReadMessageId: peerMember?.lastReadMessageId ?? null,
+      pinned,
+      muted,
       createdAt: conversation.createdAt.toISOString(),
     };
   });
@@ -252,6 +262,8 @@ export async function getConversationViewsForMembers(
       role: conversationMembers.role,
       joinedAt: conversationMembers.joinedAt,
       lastReadMessageId: conversationMembers.lastReadMessageId,
+      pinned: conversationMembers.pinned,
+      muted: conversationMembers.muted,
       user: users,
     })
     .from(conversationMembers)
@@ -307,6 +319,8 @@ export async function getConversationViewsForMembers(
       unreadCount: unreadByUser.get(member.user.id) ?? 0,
       lastReadMessageId: member.lastReadMessageId,
       peerLastReadMessageId: peerRow?.lastReadMessageId ?? null,
+      pinned: member.pinned,
+      muted: member.muted,
       createdAt: conversation.createdAt.toISOString(),
     });
   }
@@ -318,4 +332,27 @@ export async function broadcastConversation(ctx: AppContext, conversationId: num
   const views = await getConversationViewsForMembers(ctx, conversationId);
   for (const [userId, view] of views)
     ctx.io.to(userRoom(userId)).emit('conversation:updated', view);
+}
+
+/** 置顶或免打扰只影响我自己，不广播 */
+export async function updateMembership(
+  ctx: AppContext,
+  userId: number,
+  conversationId: number,
+  input: { pinned?: boolean; muted?: boolean },
+): Promise<ConversationView> {
+  await assertMember(ctx.db, conversationId, userId);
+  const patch: { pinned?: boolean; muted?: boolean } = {};
+  if (input.pinned !== undefined) patch.pinned = input.pinned;
+  if (input.muted !== undefined) patch.muted = input.muted;
+  await ctx.db
+    .update(conversationMembers)
+    .set(patch)
+    .where(
+      and(
+        eq(conversationMembers.conversationId, conversationId),
+        eq(conversationMembers.userId, userId),
+      ),
+    );
+  return requireConversationView(ctx, userId, conversationId);
 }

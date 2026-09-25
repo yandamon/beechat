@@ -150,3 +150,13 @@ export function useRecallMessage(conversationId: number) {
     onSuccess: (message) => replaceMessage(queryClient, message),
   });
 }
+
+/** 置顶或免打扰，只影响自己 */
+export function useUpdateMembership(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { pinned?: boolean; muted?: boolean }) =>
+      (await chatApi.updateMembership(conversationId, input)).conversation,
+    onSuccess: (conversation) => upsertConversation(queryClient, conversation),
+  });
+}
