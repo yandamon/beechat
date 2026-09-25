@@ -31,5 +31,9 @@ export function PublicOnly() {
   const me = useMe();
   if (me.isPending) return <CenteredMessage>{t.common.loading}</CenteredMessage>;
   if (me.data) return <Navigate to="/" replace />;
-  return <Outlet />;
+  return (
+    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+      <Outlet />
+    </div>
+  );
 }

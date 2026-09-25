@@ -32,7 +32,7 @@ export function RootLayout() {
           <ThemeToggle />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <main className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </main>
     </div>

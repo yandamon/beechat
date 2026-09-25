@@ -1,4 +1,15 @@
-import type { AuthResponse, LoginInput, RegisterInput } from '@beechat/shared';
+import type {
+  AuthResponse,
+  ConversationView,
+  CreateFriendRequestInput,
+  FriendRequestView,
+  FriendRequestsView,
+  FriendView,
+  LoginInput,
+  MessagePage,
+  RegisterInput,
+  UserSearchResult,
+} from '@beechat/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -63,4 +74,42 @@ export const authApi = {
     api<AuthResponse>('/api/auth/register', { method: 'POST', body }),
   logout: () => api<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
   logoutAll: () => api<{ ok: true }>('/api/auth/logout-all', { method: 'POST' }),
+};
+
+export const friendsApi = {
+  search: (q: string) =>
+    api<{ users: UserSearchResult[] }>(`/api/users/search?q=${encodeURIComponent(q)}`),
+  list: () => api<{ friends: FriendView[] }>('/api/friends'),
+  requests: () => api<FriendRequestsView>('/api/friends/requests'),
+  sendRequest: (body: CreateFriendRequestInput) =>
+    api<{ request: FriendRequestView }>('/api/friends/requests', { method: 'POST', body }),
+  accept: (id: number) =>
+    api<{ request: FriendRequestView }>(`/api/friends/requests/${id}/accept`, { method: 'POST' }),
+  reject: (id: number) =>
+    api<{ request: FriendRequestView }>(`/api/friends/requests/${id}/reject`, { method: 'POST' }),
+  remove: (userId: number) => api<{ ok: true }>(`/api/friends/${userId}`, { method: 'DELETE' }),
+};
+
+export interface MessagesParams {
+  before?: number;
+  after?: number;
+  limit?: number;
+}
+
+export const chatApi = {
+  conversations: () => api<{ conversations: ConversationView[] }>('/api/conversations'),
+  conversation: (id: number) => api<{ conversation: ConversationView }>(`/api/conversations/${id}`),
+  openDirect: (userId: number) =>
+    api<{ conversation: ConversationView }>('/api/conversations', {
+      method: 'POST',
+      body: { type: 'direct', userId },
+    }),
+  messages: (id: number, params: MessagesParams) => {
+    const search = new URLSearchParams();
+    if (params.before !== undefined) search.set('before', String(params.before));
+    if (params.after !== undefined) search.set('after', String(params.after));
+    if (params.limit !== undefined) search.set('limit', String(params.limit));
+    const query = search.toString();
+    return api<MessagePage>(`/api/conversations/${id}/messages${query ? `?${query}` : ''}`);
+  },
 };

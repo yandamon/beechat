@@ -4,6 +4,12 @@
 
 > **English:** beechat is a small real-time chat app (1:1 and group chat, text and images, presence, multi-device sync) built from scratch with React 19, Fastify 5, Socket.IO and PostgreSQL as a full-stack learning and portfolio project. The UI is Chinese-only for now; all strings live in one file so localisation is mechanical. See [docs/DESIGN.md](docs/DESIGN.md) for every product and technical decision.
 
+## 当前进度
+
+- 已完成：账号注册登录、好友搜索与申请、一对一私聊、消息实时收发与幂等重试、历史分页、未读数与多端已读同步、在线状态、正在输入、深色模式、Railway 部署。
+- 进行中：表情选择器、图片消息、群聊、头像、PWA。
+- 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
+
 ## 技术栈
 
 - 前端：Vite、React 19、React Router 8、Tailwind CSS v4、shadcn/ui、TanStack Query、Zustand
