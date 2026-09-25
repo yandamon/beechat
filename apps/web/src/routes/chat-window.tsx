@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 import { Composer } from '@/components/chat/composer';
+import { GroupInfoDialog } from '@/components/chat/group-info-dialog';
 import { MessageList } from '@/components/chat/message-list';
 import { UserAvatar } from '@/components/user-avatar';
 import { buttonVariants } from '@/components/ui/button';
@@ -54,6 +55,12 @@ export function ChatWindow() {
     return () => document.removeEventListener('visibilitychange', report);
   }, [conversationId, lastServerMessageId, lastReadMessageId, unreadCount, queryClient]);
 
+  // 群里按成员表把发送者 id 换成名字；已退群的人显示统一的占位
+  const memberNames = useMemo(
+    () => new Map(conversation?.members.map((member) => [member.id, member.displayName]) ?? []),
+    [conversation?.members],
+  );
+
   if (conversations.isPending) {
     return <p className="p-6 text-sm text-muted-foreground">{t.common.loading}</p>;
   }
@@ -68,13 +75,23 @@ export function ChatWindow() {
     );
   }
 
+  const isGroup = conversation.type === 'group';
   const peer = conversation.peer;
   const stillFriends =
-    conversation.type !== 'direct' ||
-    !friends.isSuccess ||
-    friends.data.some((friend) => friend.id === peer?.id);
-  const statusLine =
-    typingUsers.length > 0 ? t.chat.typing : peer?.online ? t.chat.online : t.chat.offline;
+    isGroup || !friends.isSuccess || friends.data.some((friend) => friend.id === peer?.id);
+
+  let statusLine: string;
+  if (typingUsers.length > 0) {
+    statusLine = isGroup
+      ? t.chat.typingNames(
+          typingUsers.map((id) => memberNames.get(id) ?? t.chat.formerMember).join('、'),
+        )
+      : t.chat.typing;
+  } else if (isGroup) {
+    statusLine = t.chat.memberCount(conversation.members.length);
+  } else {
+    statusLine = peer?.online ? t.chat.online : t.chat.offline;
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -91,25 +108,25 @@ export function ChatWindow() {
           seed={peer?.id ?? conversation.id}
           className="size-8"
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{conversationName(conversation)}</p>
-          {peer ? (
-            <p
-              className={cn(
-                'truncate text-xs',
-                typingUsers.length > 0 ? 'text-primary' : 'text-muted-foreground',
-              )}
-            >
-              {statusLine}
-            </p>
-          ) : null}
+          <p
+            className={cn(
+              'truncate text-xs',
+              typingUsers.length > 0 ? 'text-primary' : 'text-muted-foreground',
+            )}
+          >
+            {statusLine}
+          </p>
         </div>
+        {isGroup ? <GroupInfoDialog conversation={conversation} meId={meId} /> : null}
       </header>
 
       <MessageList
         key={conversationId}
         messages={messages}
         meId={meId}
+        senderName={isGroup ? (id) => memberNames.get(id) ?? t.chat.formerMember : undefined}
         isPending={messagesQuery.isPending}
         hasMore={messagesQuery.hasNextPage}
         isFetchingMore={messagesQuery.isFetchingNextPage}

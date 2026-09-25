@@ -1,6 +1,7 @@
 import { Users } from 'lucide-react';
 import { Link, Outlet, useMatch } from 'react-router';
 import { ConversationList } from '@/components/chat/conversation-list';
+import { CreateGroupDialog } from '@/components/chat/create-group-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
 import { useFriendRequests } from '@/features/chat/queries';
@@ -28,20 +29,23 @@ export function ChatLayout() {
           showListOnMobile ? 'flex' : 'hidden',
         )}
       >
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-2 pl-4">
           <h1 className="text-sm font-semibold">{t.chat.conversations}</h1>
-          <Link
-            to="/friends"
-            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'relative')}
-          >
-            <Users />
-            {t.chat.friends}
-            {incomingCount > 0 ? (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white">
-                {incomingCount}
-              </span>
-            ) : null}
-          </Link>
+          <div className="flex items-center gap-1">
+            <CreateGroupDialog />
+            <Link
+              to="/friends"
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'relative')}
+            >
+              <Users />
+              {t.chat.friends}
+              {incomingCount > 0 ? (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white">
+                  {incomingCount}
+                </span>
+              ) : null}
+            </Link>
+          </div>
         </div>
         <ConversationList />
       </aside>

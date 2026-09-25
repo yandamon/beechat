@@ -2,7 +2,7 @@ import { LIMITS } from '@beechat/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { chatApi, friendsApi } from '@/lib/api';
-import { queryKeys, upsertConversation } from './cache';
+import { queryKeys, removeConversation, upsertConversation } from './cache';
 
 export function useConversations() {
   return useQuery({
@@ -92,6 +92,51 @@ export function useOpenConversation() {
     onSuccess: (conversation) => {
       upsertConversation(queryClient, conversation);
       void navigate(`/c/${conversation.id}`);
+    },
+  });
+}
+
+export function useCreateGroup() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  return useMutation({
+    mutationFn: async (input: { name: string; memberIds: number[] }) =>
+      (await chatApi.createGroup(input)).conversation,
+    onSuccess: (conversation) => {
+      upsertConversation(queryClient, conversation);
+      void navigate(`/c/${conversation.id}`);
+    },
+  });
+}
+
+export function useRenameGroup(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => (await chatApi.rename(conversationId, name)).conversation,
+    onSuccess: (conversation) => upsertConversation(queryClient, conversation),
+  });
+}
+
+export function useAddMembers(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userIds: number[]) =>
+      (await chatApi.addMembers(conversationId, { userIds })).conversation,
+    onSuccess: (conversation) => upsertConversation(queryClient, conversation),
+  });
+}
+
+/** 移出成员或自己退群；退群后回到会话列表 */
+export function useRemoveMember(conversationId: number, meId: number) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  return useMutation({
+    mutationFn: (userId: number) => chatApi.removeMember(conversationId, userId),
+    onSuccess: (_result, userId) => {
+      if (userId === meId) {
+        removeConversation(queryClient, conversationId);
+        void navigate('/');
+      }
     },
   });
 }

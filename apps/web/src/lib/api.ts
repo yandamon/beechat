@@ -1,6 +1,8 @@
 import type {
+  AddMembersInput,
   AuthResponse,
   ConversationView,
+  CreateGroupConversationInput,
   CreateFriendRequestInput,
   FriendRequestView,
   FriendRequestsView,
@@ -104,6 +106,23 @@ export const chatApi = {
       method: 'POST',
       body: { type: 'direct', userId },
     }),
+  createGroup: (body: Omit<CreateGroupConversationInput, 'type'>) =>
+    api<{ conversation: ConversationView }>('/api/conversations', {
+      method: 'POST',
+      body: { type: 'group', ...body },
+    }),
+  rename: (id: number, name: string) =>
+    api<{ conversation: ConversationView }>(`/api/conversations/${id}`, {
+      method: 'PATCH',
+      body: { name },
+    }),
+  addMembers: (id: number, body: AddMembersInput) =>
+    api<{ conversation: ConversationView }>(`/api/conversations/${id}/members`, {
+      method: 'POST',
+      body,
+    }),
+  removeMember: (id: number, userId: number) =>
+    api<{ ok: true }>(`/api/conversations/${id}/members/${userId}`, { method: 'DELETE' }),
   messages: (id: number, params: MessagesParams) => {
     const search = new URLSearchParams();
     if (params.before !== undefined) search.set('before', String(params.before));

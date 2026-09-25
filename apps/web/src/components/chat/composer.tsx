@@ -1,6 +1,7 @@
 import { LIMITS } from '@beechat/shared';
 import { SendHorizontal } from 'lucide-react';
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { EmojiPicker } from '@/components/chat/emoji-picker';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n/zh-CN';
 import { socket } from '@/lib/socket';
@@ -17,6 +18,7 @@ const TYPING_IDLE_MS = 2_000;
 export function Composer({ conversationId, onSend, disabled, disabledHint }: ComposerProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const caretRef = useRef<number | null>(null);
   const typingRef = useRef(false);
   const idleTimerRef = useRef<number | undefined>(undefined);
 
@@ -47,11 +49,32 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
     element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
   }, [value]);
 
+  const rememberCaret = () => {
+    caretRef.current = textareaRef.current?.selectionStart ?? null;
+  };
+
+  /** 把表情插到光标处；选择器打开时输入框已失焦，所以用记下的光标位置 */
+  const insertAtCaret = (text: string) => {
+    const position = caretRef.current ?? value.length;
+    const next = value.slice(0, position) + text + value.slice(position);
+    setValue(next);
+    noteTyping();
+    const caret = position + text.length;
+    caretRef.current = caret;
+    requestAnimationFrame(() => {
+      const element = textareaRef.current;
+      if (!element) return;
+      element.focus();
+      element.setSelectionRange(caret, caret);
+    });
+  };
+
   const submit = () => {
     const content = value.trim();
     if (!content || disabled) return;
     onSend(content);
     setValue('');
+    caretRef.current = 0;
     stopTyping();
     textareaRef.current?.focus();
   };
@@ -79,6 +102,7 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
 
   return (
     <form onSubmit={onSubmit} className="flex items-end gap-2 border-t border-border p-3">
+      <EmojiPicker onPick={insertAtCaret} />
       <textarea
         ref={textareaRef}
         value={value}
@@ -88,8 +112,12 @@ export function Composer({ conversationId, onSend, disabled, disabledHint }: Com
         aria-label={t.chat.inputPlaceholder}
         onChange={(event) => {
           setValue(event.target.value);
+          caretRef.current = event.target.selectionStart;
           noteTyping();
         }}
+        onSelect={rememberCaret}
+        onKeyUp={rememberCaret}
+        onClick={rememberCaret}
         onKeyDown={onKeyDown}
         className="max-h-40 min-h-10 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       />

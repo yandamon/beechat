@@ -146,3 +146,11 @@ export function setUserOnline(
     ),
   );
 }
+
+/** 被移出群聊或群解散：从列表和消息缓存里删掉 */
+export function removeConversation(queryClient: QueryClient, conversationId: number) {
+  queryClient.setQueryData<ConversationView[]>(queryKeys.conversations, (list) =>
+    list?.filter((conversation) => conversation.id !== conversationId),
+  );
+  queryClient.removeQueries({ queryKey: queryKeys.messages(conversationId) });
+}

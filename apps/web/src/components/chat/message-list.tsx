@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 interface MessageListProps {
   messages: LocalMessage[];
   meId: number;
+  /** 群聊里给别人的消息标上名字；私聊不传 */
+  senderName?: (senderId: number) => string;
   isPending: boolean;
   hasMore: boolean;
   isFetchingMore: boolean;
@@ -21,6 +23,7 @@ interface MessageListProps {
 export function MessageList({
   messages,
   meId,
+  senderName,
   isPending,
   hasMore,
   isFetchingMore,
@@ -72,15 +75,31 @@ export function MessageList({
         </p>
       )}
       <ol className="space-y-2">
-        {messages.map((message) => (
-          <li key={message.clientId}>
-            {message.type === 'system' ? (
-              <SystemMessage message={message} />
-            ) : (
-              <Bubble message={message} mine={message.senderId === meId} onRetry={onRetry} />
-            )}
-          </li>
-        ))}
+        {messages.map((message, index) => {
+          const mine = message.senderId === meId;
+          const previous = messages[index - 1];
+          // 同一个人连续发的消息只在第一条上标名字
+          const showName =
+            senderName !== undefined &&
+            !mine &&
+            message.senderId !== null &&
+            message.type !== 'system' &&
+            previous?.senderId !== message.senderId;
+          return (
+            <li key={message.clientId}>
+              {message.type === 'system' ? (
+                <SystemMessage message={message} />
+              ) : (
+                <Bubble
+                  message={message}
+                  mine={mine}
+                  name={showName && message.senderId !== null ? senderName(message.senderId) : null}
+                  onRetry={onRetry}
+                />
+              )}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -97,14 +116,17 @@ function SystemMessage({ message }: { message: LocalMessage }) {
 function Bubble({
   message,
   mine,
+  name,
   onRetry,
 }: {
   message: LocalMessage;
   mine: boolean;
+  name: string | null;
   onRetry: (message: LocalMessage) => void;
 }) {
   return (
     <div className={cn('flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
+      {name ? <span className="px-1 text-xs text-muted-foreground">{name}</span> : null}
       <div
         className={cn(
           'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',

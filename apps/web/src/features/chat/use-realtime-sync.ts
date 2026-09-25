@@ -7,12 +7,14 @@ import type {
 } from '@beechat/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { socket } from '@/lib/socket';
 import {
   appendMessage,
   applyMessageToConversations,
   markConversationRead,
   queryKeys,
+  removeConversation,
   setUserOnline,
   upsertConversation,
 } from './cache';
@@ -21,6 +23,7 @@ import { useActiveConversationStore, useTypingStore } from './stores';
 /** 把服务端推送的事件落到查询缓存和本地状态里；登录后挂一次即可 */
 export function useRealtimeSync(meId: number) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onMessage = (message: MessageView) => {
@@ -47,6 +50,12 @@ export function useRealtimeSync(meId: number) {
       setUserOnline(queryClient, event.userId, event.online, event.lastSeenAt);
     const onConversationUpdated = (conversation: ConversationView) =>
       upsertConversation(queryClient, conversation);
+    const onConversationRemoved = ({ conversationId }: { conversationId: number }) => {
+      removeConversation(queryClient, conversationId);
+      if (useActiveConversationStore.getState().conversationId === conversationId) {
+        void navigate('/');
+      }
+    };
     const onRead = (event: ReadEvent) => {
       if (event.userId === meId) {
         markConversationRead(queryClient, event.conversationId, event.messageId);
@@ -76,6 +85,7 @@ export function useRealtimeSync(meId: number) {
     socket.on('typing', onTyping);
     socket.on('presence', onPresence);
     socket.on('conversation:updated', onConversationUpdated);
+    socket.on('conversation:removed', onConversationRemoved);
     socket.on('conversation:read', onRead);
     socket.on('friend:request', onFriendRequest);
     socket.on('friend:accepted', onFriendAccepted);
@@ -87,11 +97,12 @@ export function useRealtimeSync(meId: number) {
       socket.off('typing', onTyping);
       socket.off('presence', onPresence);
       socket.off('conversation:updated', onConversationUpdated);
+      socket.off('conversation:removed', onConversationRemoved);
       socket.off('conversation:read', onRead);
       socket.off('friend:request', onFriendRequest);
       socket.off('friend:accepted', onFriendAccepted);
       socket.off('friend:removed', onFriendRemoved);
       socket.io.off('reconnect', onReconnect);
     };
-  }, [queryClient, meId]);
+  }, [queryClient, meId, navigate]);
 }
