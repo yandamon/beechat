@@ -1,17 +1,20 @@
 import {
+  addMembersSchema,
   conversationIdParamSchema,
-  createDirectConversationSchema,
+  createConversationSchema,
+  memberParamsSchema,
   messagesQuerySchema,
+  updateConversationSchema,
 } from '@beechat/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { AppError } from '../../lib/errors';
 import { requireAuth } from '../../plugins/auth';
 import {
   assertMember,
-  getConversationView,
   getConversationViews,
   openDirectConversation,
+  requireConversationView,
 } from './conversations.service';
+import { addMembers, createGroup, removeMember, renameGroup } from './groups.service';
 import { getMessages } from './messages.service';
 
 export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -22,10 +25,13 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/',
-    { preHandler: app.authenticate, schema: { body: createDirectConversationSchema } },
+    { preHandler: app.authenticate, schema: { body: createConversationSchema } },
     async (request, reply) => {
       const { user } = requireAuth(request);
-      const conversation = await openDirectConversation(app.ctx, user, request.body.userId);
+      const conversation =
+        request.body.type === 'direct'
+          ? await openDirectConversation(app.ctx, user, request.body.userId)
+          : await createGroup(app.ctx, user, request.body);
       return reply.code(201).send({ conversation });
     },
   );
@@ -36,9 +42,45 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const { user } = requireAuth(request);
       await assertMember(app.ctx.db, request.params.id, user.id);
-      const conversation = await getConversationView(app.ctx, user.id, request.params.id);
-      if (!conversation) throw new AppError(404, '会话不存在', 'CONVERSATION_NOT_FOUND');
-      return { conversation };
+      return { conversation: await requireConversationView(app.ctx, user.id, request.params.id) };
+    },
+  );
+
+  app.patch(
+    '/:id',
+    {
+      preHandler: app.authenticate,
+      schema: { params: conversationIdParamSchema, body: updateConversationSchema },
+    },
+    async (request) => {
+      const { user } = requireAuth(request);
+      return {
+        conversation: await renameGroup(app.ctx, user, request.params.id, request.body.name),
+      };
+    },
+  );
+
+  app.post(
+    '/:id/members',
+    {
+      preHandler: app.authenticate,
+      schema: { params: conversationIdParamSchema, body: addMembersSchema },
+    },
+    async (request) => {
+      const { user } = requireAuth(request);
+      return {
+        conversation: await addMembers(app.ctx, user, request.params.id, request.body.userIds),
+      };
+    },
+  );
+
+  app.delete(
+    '/:id/members/:userId',
+    { preHandler: app.authenticate, schema: { params: memberParamsSchema } },
+    async (request) => {
+      const { user } = requireAuth(request);
+      await removeMember(app.ctx, user, request.params.id, request.params.userId);
+      return { ok: true };
     },
   );
 

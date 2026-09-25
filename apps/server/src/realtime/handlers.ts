@@ -3,7 +3,6 @@ import type { FastifyBaseLogger } from 'fastify';
 import { ZodError } from 'zod';
 import type { AppContext } from '../context';
 import { AppError } from '../lib/errors';
-import { listUserConversationIds } from '../modules/conversations/conversations.service';
 import { markRead, sendMessage } from '../modules/conversations/messages.service';
 import { conversationRoom, userRoom } from './rooms';
 
@@ -16,31 +15,20 @@ function toAckError(error: unknown, log: FastifyBaseLogger): SendMessageAck {
   return { ok: false, code: 'INTERNAL', message: '发送失败，请稍后再试' };
 }
 
-/** 连接建立后的房间加入、在线状态与全部客户端事件 */
+/**
+ * 连接建立后的在线状态与全部客户端事件。
+ * 房间已在握手中间件里加入完毕，这里的监听器同步注册，不会漏事件。
+ */
 export function registerRealtimeHandlers(ctx: AppContext) {
-  const { io, db, presence, log } = ctx;
+  const { io, presence, log } = ctx;
 
   io.on('connection', (socket) => {
     const { userId } = socket.data;
-    let joined = false;
-
-    // 监听器必须同步注册，否则加入房间期间客户端发来的事件会丢失；
-    // 每个处理函数先等房间就绪再干活
-    const ready = (async () => {
-      await socket.join(userRoom(userId));
-      const conversationIds = await listUserConversationIds(db, userId);
-      await socket.join(conversationIds.map(conversationRoom));
-      joined = true;
-      presence.connect(userId);
-      log.info({ socketId: socket.id, userId }, 'socket connected');
-    })().catch((error) => {
-      log.error(error, 'failed to join rooms');
-      socket.disconnect(true);
-    });
+    presence.connect(userId);
+    log.info({ socketId: socket.id, userId }, 'socket connected');
 
     socket.on('message:send', async (payload, ack) => {
       const reply = typeof ack === 'function' ? ack : () => undefined;
-      await ready;
       try {
         const input = sendMessageSchema.parse(payload);
         const message = await sendMessage(ctx, userId, input);
@@ -50,8 +38,7 @@ export function registerRealtimeHandlers(ctx: AppContext) {
       }
     });
 
-    const relayTyping = async (payload: unknown, isTyping: boolean) => {
-      await ready;
+    const relayTyping = (payload: unknown, isTyping: boolean) => {
       const parsed = typingSchema.safeParse(payload);
       if (!parsed.success) return;
       const room = conversationRoom(parsed.data.conversationId);
@@ -61,11 +48,10 @@ export function registerRealtimeHandlers(ctx: AppContext) {
         .to(room)
         .emit('typing', { conversationId: parsed.data.conversationId, userId, isTyping });
     };
-    socket.on('typing:start', (payload) => void relayTyping(payload, true));
-    socket.on('typing:stop', (payload) => void relayTyping(payload, false));
+    socket.on('typing:start', (payload) => relayTyping(payload, true));
+    socket.on('typing:stop', (payload) => relayTyping(payload, false));
 
     socket.on('conversation:read', async (payload) => {
-      await ready;
       const parsed = readSchema.safeParse(payload);
       if (!parsed.success) return;
       const { conversationId, messageId } = parsed.data;
@@ -80,9 +66,8 @@ export function registerRealtimeHandlers(ctx: AppContext) {
       }
     });
 
-    socket.on('disconnect', async (reason) => {
-      await ready;
-      if (joined) presence.disconnect(userId);
+    socket.on('disconnect', (reason) => {
+      presence.disconnect(userId);
       log.info({ socketId: socket.id, userId, reason }, 'socket disconnected');
     });
   });

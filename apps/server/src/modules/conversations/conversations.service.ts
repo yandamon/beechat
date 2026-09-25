@@ -220,3 +220,98 @@ export async function openDirectConversation(
   if (!view) throw new AppError(404, '会话不存在', 'CONVERSATION_NOT_FOUND');
   return view;
 }
+
+export async function requireConversationView(
+  ctx: AppContext,
+  userId: number,
+  conversationId: number,
+): Promise<ConversationView> {
+  const view = await getConversationView(ctx, userId, conversationId);
+  if (!view) throw new AppError(404, '会话不存在', 'CONVERSATION_NOT_FOUND');
+  return view;
+}
+
+/** 一次算出某个会话在每个成员视角下的视图，用于群变动后的广播 */
+export async function getConversationViewsForMembers(
+  ctx: AppContext,
+  conversationId: number,
+): Promise<Map<number, ConversationView>> {
+  const { db, presence } = ctx;
+  const [conversation] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+  if (!conversation) return new Map();
+
+  const memberRows = await db
+    .select({
+      role: conversationMembers.role,
+      joinedAt: conversationMembers.joinedAt,
+      lastReadMessageId: conversationMembers.lastReadMessageId,
+      user: users,
+    })
+    .from(conversationMembers)
+    .innerJoin(users, eq(users.id, conversationMembers.userId))
+    .where(eq(conversationMembers.conversationId, conversationId));
+
+  const [lastIdRow] = await db
+    .select({ id: max(messages.id) })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), isNull(messages.deletedAt)));
+  const lastId = lastIdRow?.id ?? null;
+  const [lastMessage] =
+    lastId !== null ? await db.select().from(messages).where(eq(messages.id, lastId)).limit(1) : [];
+
+  // 每个成员的未读数一条查询算完
+  const unreadRows = await db
+    .select({ userId: conversationMembers.userId, unread: count() })
+    .from(messages)
+    .innerJoin(conversationMembers, eq(conversationMembers.conversationId, messages.conversationId))
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        isNull(messages.deletedAt),
+        gt(messages.id, sql`coalesce(${conversationMembers.lastReadMessageId}, 0)`),
+        or(isNull(messages.senderId), ne(messages.senderId, conversationMembers.userId)),
+      ),
+    )
+    .groupBy(conversationMembers.userId);
+  const unreadByUser = new Map(unreadRows.map((row) => [row.userId, row.unread]));
+
+  const members = memberRows.map((member) => ({
+    ...toPublicUser(member.user),
+    role: member.role,
+    joinedAt: member.joinedAt.toISOString(),
+  }));
+  const views = new Map<number, ConversationView>();
+  for (const member of memberRows) {
+    const peerRow =
+      conversation.type === 'direct'
+        ? memberRows.find((other) => other.user.id !== member.user.id)
+        : undefined;
+    views.set(member.user.id, {
+      id: conversation.id,
+      type: conversation.type,
+      name: conversation.name,
+      avatarUrl: null,
+      peer: peerRow
+        ? { ...toPublicUser(peerRow.user), online: presence.isOnline(peerRow.user.id) }
+        : null,
+      members,
+      lastMessage: lastMessage ? toMessageView(lastMessage) : null,
+      lastMessageAt: conversation.lastMessageAt?.toISOString() ?? null,
+      unreadCount: unreadByUser.get(member.user.id) ?? 0,
+      lastReadMessageId: member.lastReadMessageId,
+      createdAt: conversation.createdAt.toISOString(),
+    });
+  }
+  return views;
+}
+
+/** 把会话的最新状态推给每个成员 */
+export async function broadcastConversation(ctx: AppContext, conversationId: number) {
+  const views = await getConversationViewsForMembers(ctx, conversationId);
+  for (const [userId, view] of views)
+    ctx.io.to(userRoom(userId)).emit('conversation:updated', view);
+}

@@ -47,6 +47,8 @@ export interface ServerToClientEvents {
   typing: (event: TypingEvent) => void;
   presence: (event: PresenceEvent) => void;
   'conversation:updated': (conversation: ConversationView) => void;
+  /** 被移出群聊或群被解散，客户端应从列表移除 */
+  'conversation:removed': (event: { conversationId: number }) => void;
   'conversation:read': (event: ReadEvent) => void;
   'friend:request': (request: FriendRequestView) => void;
   'friend:accepted': (friend: FriendView) => void;

@@ -5,10 +5,11 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import type { Db } from '../db/client';
 import { users } from '../db/schema';
+import { listUserConversationIds } from '../modules/conversations/conversations.service';
 import { getFriendIds } from '../modules/friends/friends.repo';
 import { SESSION_COOKIE, findSessionByToken, readCookie } from '../modules/auth/session.service';
 import { PresenceService } from './presence';
-import { userRoom } from './rooms';
+import { conversationRoom, userRoom } from './rooms';
 
 export interface SocketData {
   userId: number;
@@ -64,7 +65,7 @@ export function createRealtime({ httpServer, db, log, presenceGraceMs }: CreateR
     presenceGraceMs,
   );
 
-  // 握手时复用登录 Cookie；没有有效会话的连接直接拒绝
+  // 握手时复用登录 Cookie；没有有效会话的连接直接拒绝。加入房间也在这里完成。
   io.use(async (socket, next) => {
     try {
       const token = readCookie(socket.handshake.headers.cookie, SESSION_COOKIE);
@@ -75,6 +76,10 @@ export function createRealtime({ httpServer, db, log, presenceGraceMs }: CreateR
       }
       socket.data.userId = session.user.id;
       socket.data.username = session.user.username;
+      // 在握手阶段就加入房间：客户端收到 connect 时已经能收到会话事件
+      await socket.join(userRoom(session.user.id));
+      const conversationIds = await listUserConversationIds(db, session.user.id);
+      await socket.join(conversationIds.map(conversationRoom));
       next();
     } catch (error) {
       log.error(error, 'socket auth failed');

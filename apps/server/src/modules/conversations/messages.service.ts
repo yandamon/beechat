@@ -15,6 +15,7 @@ export async function insertSystemMessage(
   db: DbLike,
   conversationId: number,
   content: string,
+  options: { readBy?: number } = {},
 ): Promise<Message> {
   const [message] = await db
     .insert(messages)
@@ -25,6 +26,18 @@ export async function insertSystemMessage(
     .update(conversations)
     .set({ lastMessageAt: message.createdAt })
     .where(eq(conversations.id, conversationId));
+  // 动作的发起者不应把自己的操作看成未读
+  if (options.readBy !== undefined) {
+    await db
+      .update(conversationMembers)
+      .set({ lastReadMessageId: message.id })
+      .where(
+        and(
+          eq(conversationMembers.conversationId, conversationId),
+          eq(conversationMembers.userId, options.readBy),
+        ),
+      );
+  }
   return message;
 }
 

@@ -35,3 +35,36 @@ export const createDirectConversationSchema = z.object({
   userId: positiveId,
 });
 export type CreateDirectConversationInput = z.infer<typeof createDirectConversationSchema>;
+
+const groupNameSchema = z
+  .string()
+  .trim()
+  .min(1, '请输入群名')
+  .max(LIMITS.groupName.max, `群名最多 ${LIMITS.groupName.max} 字`);
+
+export const createGroupConversationSchema = z.object({
+  type: z.literal('group'),
+  name: groupNameSchema,
+  /** 不含创建者自己，必须都是创建者的好友 */
+  memberIds: z
+    .array(positiveId)
+    .min(1, '至少选择一位好友')
+    .max(LIMITS.groupMembers.max - 1, `群成员最多 ${LIMITS.groupMembers.max} 人`),
+});
+export type CreateGroupConversationInput = z.infer<typeof createGroupConversationSchema>;
+
+export const createConversationSchema = z.discriminatedUnion('type', [
+  createDirectConversationSchema,
+  createGroupConversationSchema,
+]);
+export type CreateConversationInput = z.infer<typeof createConversationSchema>;
+
+export const updateConversationSchema = z.object({ name: groupNameSchema });
+export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
+
+export const addMembersSchema = z.object({
+  userIds: z.array(positiveId).min(1, '至少选择一位好友').max(LIMITS.groupMembers.max),
+});
+export type AddMembersInput = z.infer<typeof addMembersSchema>;
+
+export const memberParamsSchema = z.object({ id: coercedId, userId: coercedId });
