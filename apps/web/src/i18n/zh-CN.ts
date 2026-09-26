@@ -102,6 +102,8 @@ export const t = {
     members: '成员',
     owner: '群主',
     rename: '修改群名',
+    changeAvatar: '更换群头像',
+    removeAvatar: '移除群头像',
     invite: '邀请好友',
     inviteConfirm: '确认邀请',
     noOneToInvite: '你的好友都已经在群里了。',

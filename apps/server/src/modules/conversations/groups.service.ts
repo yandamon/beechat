@@ -10,6 +10,7 @@ import {
   joinUserSockets,
   requireConversationView,
 } from './conversations.service';
+import { requireCompletedUpload } from '../uploads/uploads.service';
 import { insertSystemMessage } from './messages.service';
 
 async function loadGroup(db: DbLike, conversationId: number) {
@@ -98,22 +99,37 @@ export async function createGroup(
   return requireConversationView(ctx, me.id, conversationId);
 }
 
-export async function renameGroup(
+export async function updateGroup(
   ctx: AppContext,
   me: User,
   conversationId: number,
-  name: string,
+  input: { name?: string; avatarKey?: string | null },
 ): Promise<ConversationView> {
   const { db } = ctx;
   const group = await loadGroup(db, conversationId);
   await assertMe(db, conversationId, me.id);
-  if (group.ownerId !== me.id) throw new AppError(403, '只有群主可以修改群名', 'NOT_OWNER');
+  if (group.ownerId !== me.id) throw new AppError(403, '只有群主可以修改群资料', 'NOT_OWNER');
+
+  const patch: { name?: string; avatarKey?: string | null } = {};
+  const notes: string[] = [];
+  if (input.name !== undefined && input.name !== group.name) {
+    patch.name = input.name;
+    notes.push(`${me.displayName} 将群名改为“${input.name}”`);
+  }
+  if (input.avatarKey !== undefined) {
+    if (input.avatarKey !== null) {
+      await requireCompletedUpload(db, input.avatarKey, me.id, 'avatar');
+    }
+    patch.avatarKey = input.avatarKey;
+    notes.push(`${me.displayName} 更新了群头像`);
+  }
+  if (Object.keys(patch).length === 0) return requireConversationView(ctx, me.id, conversationId);
 
   await db.transaction(async (tx) => {
-    await tx.update(conversations).set({ name }).where(eq(conversations.id, conversationId));
-    await insertSystemMessage(tx, conversationId, `${me.displayName} 将群名改为“${name}”`, {
-      readBy: me.id,
-    });
+    await tx.update(conversations).set(patch).where(eq(conversations.id, conversationId));
+    for (const note of notes) {
+      await insertSystemMessage(tx, conversationId, note, { readBy: me.id });
+    }
   });
   await broadcastConversation(ctx, conversationId);
   return requireConversationView(ctx, me.id, conversationId);

@@ -213,3 +213,72 @@ describe('groups', () => {
     expect([403, 404]).toContain(gone.statusCode);
   });
 });
+
+describe('group avatar', () => {
+  it('lets the owner set and clear the group avatar', async () => {
+    const ctx = await createTestApp();
+    await ctx.reset();
+    try {
+      const alice = await registerUser(ctx, 'alice');
+      const bob = await registerUser(ctx, 'bob');
+      await becomeFriends(ctx, alice, bob);
+      const group: ConversationView = (
+        await ctx.app.inject({
+          method: 'POST',
+          url: '/api/conversations',
+          cookies: alice.cookies,
+          payload: { type: 'group', name: '有头像的群', memberIds: [bob.user.id] },
+        })
+      ).json().conversation;
+
+      const signed = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/uploads/presign',
+        cookies: alice.cookies,
+        payload: { kind: 'avatar', mime: 'image/webp', size: 256, width: 256, height: 256 },
+      });
+      const { key } = signed.json();
+      await ctx.app.inject({
+        method: 'PUT',
+        url: `/api/uploads/local/${key}`,
+        cookies: alice.cookies,
+        headers: { 'content-type': 'image/webp' },
+        payload: Buffer.alloc(256, 9),
+      });
+      await ctx.app.inject({
+        method: 'POST',
+        url: '/api/uploads/complete',
+        cookies: alice.cookies,
+        payload: { key },
+      });
+
+      const byBob = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/conversations/${group.id}`,
+        cookies: bob.cookies,
+        payload: { avatarKey: key },
+      });
+      expect(byBob.statusCode).toBe(403);
+
+      const updated = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/conversations/${group.id}`,
+        cookies: alice.cookies,
+        payload: { avatarKey: key },
+      });
+      expect(updated.statusCode).toBe(200);
+      expect(updated.json().conversation.avatarUrl).toBe(`/uploads/${key}`);
+      expect(updated.json().conversation.lastMessage.content).toContain('更新了群头像');
+
+      const cleared = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/conversations/${group.id}`,
+        cookies: alice.cookies,
+        payload: { avatarKey: null },
+      });
+      expect(cleared.json().conversation.avatarUrl).toBeNull();
+    } finally {
+      await ctx.close();
+    }
+  });
+});

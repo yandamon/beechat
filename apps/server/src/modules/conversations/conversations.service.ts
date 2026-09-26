@@ -13,6 +13,7 @@ import {
 import { isUniqueViolation } from '../../lib/db-errors';
 import { AppError } from '../../lib/errors';
 import { toMessageView, toPublicUser } from '../../lib/views';
+import { publicUrlFor } from '../../storage';
 import { conversationRoom, userRoom } from '../../realtime/rooms';
 import type { RealtimeServer } from '../../realtime/server';
 import { areFriends } from '../friends/friends.repo';
@@ -186,7 +187,7 @@ export async function getConversationViews(
       id: conversation.id,
       type: conversation.type,
       name: conversation.name,
-      avatarUrl: null,
+      avatarUrl: conversation.avatarKey ? publicUrlFor(conversation.avatarKey) : null,
       peer: peer ? { ...toPublicUser(peer), online: presence.isOnline(peer.id) } : null,
       members: memberList.map((member) => ({
         ...toPublicUser(member.user),
@@ -309,7 +310,7 @@ export async function getConversationViewsForMembers(
       id: conversation.id,
       type: conversation.type,
       name: conversation.name,
-      avatarUrl: null,
+      avatarUrl: conversation.avatarKey ? publicUrlFor(conversation.avatarKey) : null,
       peer: peerRow
         ? { ...toPublicUser(peerRow.user), online: presence.isOnline(peerRow.user.id) }
         : null,

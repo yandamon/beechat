@@ -12,6 +12,7 @@ import type {
   MessageView,
   PresignUploadInput,
   ReactionSummary,
+  UpdateConversationInput,
   UpdateMembershipInput,
   PresignedUpload,
   RegisterInput,
@@ -133,10 +134,10 @@ export const chatApi = {
       method: 'POST',
       body: { type: 'group', ...body },
     }),
-  rename: (id: number, name: string) =>
+  updateConversation: (id: number, body: UpdateConversationInput) =>
     api<{ conversation: ConversationView }>(`/api/conversations/${id}`, {
       method: 'PATCH',
-      body: { name },
+      body,
     }),
   addMembers: (id: number, body: AddMembersInput) =>
     api<{ conversation: ConversationView }>(`/api/conversations/${id}/members`, {

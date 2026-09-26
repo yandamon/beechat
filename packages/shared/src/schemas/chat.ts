@@ -78,7 +78,15 @@ export const createConversationSchema = z.discriminatedUnion('type', [
 ]);
 export type CreateConversationInput = z.infer<typeof createConversationSchema>;
 
-export const updateConversationSchema = z.object({ name: groupNameSchema });
+/** 群主改群名或群头像；avatarKey 传 null 表示清除 */
+export const updateConversationSchema = z
+  .object({
+    name: groupNameSchema.optional(),
+    avatarKey: z.string().min(1).max(200).nullable().optional(),
+  })
+  .refine((value) => value.name !== undefined || value.avatarKey !== undefined, {
+    message: '至少提供一个字段',
+  });
 export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
 
 export const addMembersSchema = z.object({

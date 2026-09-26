@@ -115,10 +115,12 @@ export function useCreateGroup() {
   });
 }
 
-export function useRenameGroup(conversationId: number) {
+/** 群主改群名或群头像 */
+export function useUpdateGroup(conversationId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => (await chatApi.rename(conversationId, name)).conversation,
+    mutationFn: async (input: { name?: string; avatarKey?: string | null }) =>
+      (await chatApi.updateConversation(conversationId, input)).conversation,
     onSuccess: (conversation) => upsertConversation(queryClient, conversation),
   });
 }

@@ -18,7 +18,7 @@ import {
   requireConversationView,
   updateMembership,
 } from './conversations.service';
-import { addMembers, createGroup, removeMember, renameGroup } from './groups.service';
+import { addMembers, createGroup, removeMember, updateGroup } from './groups.service';
 import { getMessages, recallMessage } from './messages.service';
 import { toggleReaction } from './reactions.service';
 
@@ -60,7 +60,7 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const { user } = requireAuth(request);
       return {
-        conversation: await renameGroup(app.ctx, user, request.params.id, request.body.name),
+        conversation: await updateGroup(app.ctx, user, request.params.id, request.body),
       };
     },
   );

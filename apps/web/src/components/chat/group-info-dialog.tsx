@@ -1,6 +1,6 @@
 import type { ConversationView } from '@beechat/shared';
 import { Info } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,8 +18,9 @@ import {
   useAddMembers,
   useFriends,
   useRemoveMember,
-  useRenameGroup,
+  useUpdateGroup,
 } from '@/features/chat/queries';
+import { uploadImage } from '@/features/chat/upload';
 import { t } from '@/i18n/zh-CN';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,7 @@ export function GroupInfoDialog({ conversation, meId }: GroupInfoDialogProps) {
           <DialogDescription>{t.chat.memberCount(conversation.members.length)}</DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] space-y-6 overflow-y-auto">
+          {isOwner ? <AvatarSection conversation={conversation} /> : null}
           {isOwner ? <RenameForm conversation={conversation} /> : null}
           <MembersSection conversation={conversation} meId={meId} isOwner={isOwner} />
           <InviteSection conversation={conversation} />
@@ -60,14 +62,79 @@ export function GroupInfoDialog({ conversation, meId }: GroupInfoDialogProps) {
   );
 }
 
+function AvatarSection({ conversation }: { conversation: ConversationView }) {
+  const update = useUpdateGroup(conversation.id);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPicked = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const uploaded = await uploadImage(file, 'avatar');
+      await update.mutateAsync({ avatarKey: uploaded.key });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t.common.loadFailed);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <section className="flex items-center gap-4">
+      <UserAvatar
+        name={conversation.name ?? t.chat.groupFallbackName}
+        seed={conversation.id}
+        src={conversation.avatarUrl}
+        className={cn('size-16', uploading && 'opacity-60')}
+      />
+      <div className="flex flex-col gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onPicked(file);
+            event.target.value = '';
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {uploading ? t.chat.uploading : t.group.changeAvatar}
+        </Button>
+        {conversation.avatarUrl ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={uploading || update.isPending}
+            onClick={() => update.mutate({ avatarKey: null })}
+          >
+            {t.group.removeAvatar}
+          </Button>
+        ) : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function RenameForm({ conversation }: { conversation: ConversationView }) {
   const [name, setName] = useState(conversation.name ?? '');
-  const rename = useRenameGroup(conversation.id);
+  const rename = useUpdateGroup(conversation.id);
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed || trimmed === conversation.name) return;
-    rename.mutate(trimmed);
+    rename.mutate({ name: trimmed });
   };
   return (
     <form onSubmit={onSubmit} className="space-y-2">
