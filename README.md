@@ -6,8 +6,8 @@
 
 ## 当前进度
 
-- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、好友搜索与申请、拉黑与黑名单、举报、一对一私聊、群聊（建群、改名、群头像、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、消息回应、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知、断线提示、深色模式、PWA 可安装、Railway 部署、Playwright 端到端测试。
-- 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）；之后是 Web 推送等。
+- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、好友搜索与申请、拉黑与黑名单、举报、一对一私聊、群聊（建群、改名、群头像、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、消息回应、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知与离线推送、断线提示、深色模式、PWA 可安装、Railway 部署、Playwright 端到端测试。
+- 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）。
 - 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
 
 ## 技术栈
@@ -47,7 +47,7 @@ cp apps/server/.env.example apps/server/.env
 pnpm dev
 ```
 
-`.env` 里的 `INVITE_CODE` 是注册时必须填写的邀请码，本地默认 `beechat-dev`；`DEMO_ENABLED` 控制登录页的“试用演示账号”入口，默认开启。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。
+`.env` 里的 `INVITE_CODE` 是注册时必须填写的邀请码，本地默认 `beechat-dev`；`DEMO_ENABLED` 控制登录页的“试用演示账号”入口，默认开启。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。离线推送是可选的：同时填写 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT` 才会启用（生成密钥：`pnpm --filter @beechat/server exec web-push generate-vapid-keys`），没填时"开启桌面通知"只在页面开着时提醒。
 
 `pnpm dev` 会同时启动前端（http://localhost:5173）和后端（http://localhost:3000）。前端开发服务器把 `/api` 与 `/socket.io` 代理到后端，因此浏览器始终同源访问。
 
@@ -114,7 +114,7 @@ NODE_ENV=production pnpm start
 
 1. 在 Neon 新建项目（区域 Singapore，Postgres 17），复制直连的连接串。
 2. Railway 里 New Project，选择 Deploy from GitHub repo，选中 `beechat`。
-3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`。
+3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`；要开启离线推送再加上 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT`（见"本地开发"）。
 4. Settings 里 Networking 一栏点 Generate Domain，得到公网地址。
 
 仓库连接时没有安装 Railway 的 GitHub App，推送不会自动触发部署；在 Railway 控制台的 Settings 里连接 GitHub 账号后即可自动部署，或者在仓库根目录用 CLI 手动部署：

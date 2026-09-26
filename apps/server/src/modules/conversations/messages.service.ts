@@ -161,6 +161,8 @@ export async function sendMessage(
   if (!result.duplicate) {
     io.to(conversationRoom(conversationId)).emit('message:new', view);
     maybeReplyAsBot(ctx, view);
+    // 不在线的成员走 Web 推送；不等它完成，也不让它影响发送结果
+    void ctx.push.notifyNewMessage(view);
   }
   return view;
 }

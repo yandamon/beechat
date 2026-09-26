@@ -11,6 +11,7 @@ import {
   notificationsSupported,
   useNotificationStore,
 } from '@/features/chat/notifications';
+import { subscribeToPush, unsubscribeFromPush } from '@/features/chat/push';
 import { useRealtimeSync } from '@/features/chat/use-realtime-sync';
 import { t } from '@/i18n/zh-CN';
 import { cn } from '@/lib/utils';
@@ -31,11 +32,17 @@ export function ChatLayout() {
   const toggleNotifications = async () => {
     if (notificationsOn) {
       notifications.setEnabled(false);
+      void unsubscribeFromPush();
       return;
     }
     const permission = await enableNotifications();
     if (permission === 'denied') window.alert(t.chat.notificationsBlocked);
+    if (permission === 'granted') void subscribeToPush();
   };
+  // 开着通知的设备每次打开应用都确认一下推送订阅还在（浏览器可能让它过期）
+  useEffect(() => {
+    if (notificationsOn) void subscribeToPush();
+  }, [notificationsOn]);
   const showOffline = connection.everConnected && connection.status !== 'online';
 
   // 标签页标题带上总未读数

@@ -8,9 +8,12 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // v1 的 PWA 只做“可安装”：清单加应用壳缓存；接口和 socket 一律走网络
+    // PWA：清单、应用壳缓存和 Web 推送；Service Worker 的逻辑在 src/sw.ts
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: '小蜜蜂',
@@ -28,10 +31,8 @@ export default defineConfig({
           { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//],
       },
       devOptions: { enabled: false },
     }),

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
-import { type App, buildApp } from '../app';
+import { type App, type BuildAppOptions, buildApp } from '../app';
 import { config } from '../config';
 import { type Db, createDb, runMigrations } from '../db/client';
 
@@ -23,6 +23,7 @@ export interface TestApp {
 export interface TestAppOptions {
   rateLimit?: boolean;
   presenceGraceMs?: number;
+  push?: BuildAppOptions['push'];
 }
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
@@ -32,6 +33,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     db,
     rateLimit: options.rateLimit ?? false,
     presenceGraceMs: options.presenceGraceMs,
+    push: options.push,
   });
   return {
     app,

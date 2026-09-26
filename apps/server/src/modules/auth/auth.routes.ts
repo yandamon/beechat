@@ -54,6 +54,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post('/logout-all', { preHandler: app.authenticate }, async (request, reply) => {
     const { user } = requireAuth(request);
+    await app.ctx.push.removeAllForUser(user.id);
     await deleteUserSessions(app.db, user.id);
     clearSessionCookie(reply);
     return { ok: true };

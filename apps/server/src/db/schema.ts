@@ -270,3 +270,22 @@ export const reports = pgTable(
     uniqueIndex('reports_reporter_message_idx').on(t.reporterId, t.messageId),
   ],
 );
+/** Web 推送订阅：一个用户可以有多台设备，换账号登录同一台设备时改归属 */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text().notNull(),
+    p256dh: text().notNull(),
+    auth: text().notNull(),
+    userAgent: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint),
+    index('push_subscriptions_user_id_idx').on(t.userId),
+  ],
+);

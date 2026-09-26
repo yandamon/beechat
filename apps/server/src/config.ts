@@ -22,6 +22,13 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_URL: z.url().optional(),
+  /** Web 推送的 VAPID 密钥对与联系方式；三项都填才启用推送 */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z
+    .string()
+    .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT 必须是 mailto: 或 https:// 开头')
+    .optional(),
   /** 限流开关；端到端测试里关掉 */
   RATE_LIMIT: z
     .enum(['true', 'false'])
@@ -38,6 +45,14 @@ export type Config = z.infer<typeof envSchema>;
 
 export const config: Config = envSchema
   .superRefine((value, ctx) => {
+    const vapid = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const;
+    if (vapid.some((key) => value[key]) && !vapid.every((key) => value[key])) {
+      ctx.addIssue({
+        code: 'custom',
+        message: '推送要同时设置 VAPID_PUBLIC_KEY、VAPID_PRIVATE_KEY、VAPID_SUBJECT',
+        path: ['VAPID_SUBJECT'],
+      });
+    }
     if (value.STORAGE_DRIVER !== 'r2') return;
     for (const key of [
       'R2_ACCOUNT_ID',

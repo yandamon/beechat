@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from './db/client';
+import type { PushService } from './modules/push/push.service';
 import type { PresenceService } from './realtime/presence';
 import type { RealtimeServer } from './realtime/server';
 import type { StorageDriver } from './storage/types';
@@ -10,6 +11,7 @@ export interface AppContext {
   io: RealtimeServer;
   presence: PresenceService;
   storage: StorageDriver;
+  push: PushService;
   log: FastifyBaseLogger;
 }
 

@@ -2,7 +2,7 @@
 
 > 状态：已确认，2026-09-22。本文档是全部产品与技术决定的唯一来源：先改这里，再改代码。
 >
-> 进度：2026-09-26 v1 范围内的功能已全部实现并有测试覆盖，v1.1 中的撤回、私聊已读回执、桌面通知、引用回复、注销账号、演示助手、拉黑、举报也已完成；线上图片存储仍用本地驱动，等 R2 密钥填入后切换。
+> 进度：2026-09-26 v1 范围内的功能已全部实现并有测试覆盖，v1.1 中的撤回、私聊已读回执、桌面通知、引用回复、注销账号、演示助手、拉黑、举报、Web 推送也已完成，v1.1 全部落地；线上图片存储仍用本地驱动，等 R2 密钥填入后切换。
 
 ## 1. 定位与目标
 
@@ -25,7 +25,7 @@
 
 ### v1.1
 
-Web 推送。已提前完成：举报（`reports` 表记录举报人、被举报人、消息快照与原因，只落库并打 warn 日志供人工处理，没有后台界面；同一人对同一条消息只记一次）、拉黑（`friendships` 里一行单向的 `blocked`；拉黑即解除好友并删除双方待处理的申请，之后双方都不能在原私聊里发消息，被拉黑方申请加好友时只得到“无法添加该用户”，拉黑方在搜索结果和黑名单里可以解除）、自定义群头像（群主通过 PATCH /api/conversations/:id 设置 avatarKey）、消息回应（message_reactions 表，固定六个表情，汇总广播）、置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
+（全部完成）已提前完成：Web 推送（`push_subscriptions` 表，一台设备一行；新消息时给不在线、没开免打扰的成员推送，Service Worker 收到后弹系统通知，点击打开对应会话；推送服务返回 404/410 就删订阅；退出登录或退出所有设备时清掉订阅；需要 VAPID 密钥，没配就整体关闭）、举报（`reports` 表记录举报人、被举报人、消息快照与原因，只落库并打 warn 日志供人工处理，没有后台界面；同一人对同一条消息只记一次）、拉黑（`friendships` 里一行单向的 `blocked`；拉黑即解除好友并删除双方待处理的申请，之后双方都不能在原私聊里发消息，被拉黑方申请加好友时只得到“无法添加该用户”，拉黑方在搜索结果和黑名单里可以解除）、自定义群头像（群主通过 PATCH /api/conversations/:id 设置 avatarKey）、消息回应（message_reactions 表，固定六个表情，汇总广播）、置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
 
 ### v2
 
@@ -144,19 +144,20 @@ beechat/
 
 ### 5.3 环境变量
 
-| 变量             | 用途                                     | 何时启用       |
-| ---------------- | ---------------------------------------- | -------------- |
-| `PORT`、`HOST`   | 监听端口与地址，Railway 自动注入 `PORT`  | 现在           |
-| `LOG_LEVEL`      | pino 日志级别                            | 现在           |
-| `DATABASE_URL`   | Postgres 连接串；测试从 `.env.test` 读取 | 现在           |
-| `INVITE_CODE`    | 注册邀请码，常数时间比较                 | 现在           |
-| `DEMO_ENABLED`   | 是否开放演示账号一键登录，默认 true      | 现在           |
-| `RATE_LIMIT`     | 限流开关，默认 true；端到端测试关掉      | 现在           |
-| `STORAGE_DRIVER` | `local` 或 `r2`，默认 local              | 现在           |
-| `UPLOADS_DIR`    | 本地驱动的存储目录，默认 ./uploads       | 现在           |
-| `R2_*`           | R2 账号、密钥、桶名、公开地址；r2 时必填 | 切换 R2 时     |
-| `STORAGE_DRIVER` | `local` 或 `r2`                          | 图片上传接入后 |
-| `R2_*`           | R2 账号、密钥、桶名、公开地址            | 图片上传接入后 |
+| 变量                                                       | 用途                                                            | 何时启用       |
+| ---------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
+| `PORT`、`HOST`                                             | 监听端口与地址，Railway 自动注入 `PORT`                         | 现在           |
+| `LOG_LEVEL`                                                | pino 日志级别                                                   | 现在           |
+| `DATABASE_URL`                                             | Postgres 连接串；测试从 `.env.test` 读取                        | 现在           |
+| `INVITE_CODE`                                              | 注册邀请码，常数时间比较                                        | 现在           |
+| `DEMO_ENABLED`                                             | 是否开放演示账号一键登录，默认 true                             | 现在           |
+| `RATE_LIMIT`                                               | 限流开关，默认 true；端到端测试关掉                             | 现在           |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web 推送的密钥对与联系方式（mailto: 或 https:），三项都填才启用 | 现在           |
+| `STORAGE_DRIVER`                                           | `local` 或 `r2`，默认 local                                     | 现在           |
+| `UPLOADS_DIR`                                              | 本地驱动的存储目录，默认 ./uploads                              | 现在           |
+| `R2_*`                                                     | R2 账号、密钥、桶名、公开地址；r2 时必填                        | 切换 R2 时     |
+| `STORAGE_DRIVER`                                           | `local` 或 `r2`                                                 | 图片上传接入后 |
+| `R2_*`                                                     | R2 账号、密钥、桶名、公开地址                                   | 图片上传接入后 |
 
 ## 6. 数据模型
 
@@ -173,6 +174,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 | `messages`             | `id`（bigserial，用于排序与分页）、`conversation_id`、`sender_id`、`type`（text、image、system）、`content`、`attachment_key`、`attachment_meta`（宽高、大小）、`client_id`（幂等键，按发送者唯一）、`deleted_at` |
 | `uploads`              | `key`、`owner_id`、`mime`、`size`；用于追踪和清理 R2 对象                                                                                                                                                         |
 | `reports`              | `reporter_id`、`target_user_id`、`message_id`（消息删除后置空）、`reason`、`detail`、`snapshot`（举报时的消息内容）；只供人工处理                                                                                 |
+| `push_subscriptions`   | `user_id`、`endpoint`（唯一）、`p256dh`、`auth`、`user_agent`；一个用户多台设备                                                                                                                                   |
 
 ## 7. 实时协议与消息投递
 
@@ -206,6 +208,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 | messages      | `GET /api/conversations/:id/messages?before=&limit=`                                                                                                                                                                                                                                               |
 | uploads       | `POST /api/uploads/presign`、`POST /api/uploads/complete`                                                                                                                                                                                                                                          |
 | reports       | `POST /api/reports`                                                                                                                                                                                                                                                                                |
+| push          | `GET /api/push/public-key`、`POST /api/push/subscriptions`、`DELETE /api/push/subscriptions`                                                                                                                                                                                                       |
 | health        | `GET /api/health`                                                                                                                                                                                                                                                                                  |
 
 所有入参用 `packages/shared` 里的 zod schema 校验；错误统一返回 `{ message }`。

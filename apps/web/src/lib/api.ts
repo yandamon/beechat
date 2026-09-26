@@ -4,6 +4,7 @@ import type {
   BlockedUserView,
   ConversationView,
   CreateReportInput,
+  PushSubscriptionInput,
   CreateGroupConversationInput,
   CreateFriendRequestInput,
   FriendRequestView,
@@ -126,6 +127,14 @@ export interface MessagesParams {
   after?: number;
   limit?: number;
 }
+
+export const pushApi = {
+  publicKey: () => api<{ publicKey: string | null }>('/api/push/public-key'),
+  subscribe: (body: PushSubscriptionInput) =>
+    api<{ ok: true }>('/api/push/subscriptions', { method: 'POST', body }),
+  unsubscribe: (endpoint: string) =>
+    api<{ ok: true }>('/api/push/subscriptions', { method: 'DELETE', body: { endpoint } }),
+};
 
 export const reportsApi = {
   create: (body: CreateReportInput) =>

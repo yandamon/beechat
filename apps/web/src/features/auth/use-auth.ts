@@ -1,3 +1,4 @@
+import { unsubscribeFromPush } from '@/features/chat/push';
 import type { LoginInput, PublicUser, RegisterInput, UpdateProfileInput } from '@beechat/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, authApi, usersApi } from '@/lib/api';
@@ -89,5 +90,12 @@ export function useLogoutAll() {
 
 export function useLogout() {
   const clearSession = useClearSession();
-  return useMutation({ mutationFn: () => authApi.logout(), onSuccess: clearSession });
+  return useMutation({
+    // 先取消这台设备的推送订阅，退出后就不会再收到这个账号的通知
+    mutationFn: async () => {
+      await unsubscribeFromPush();
+      return authApi.logout();
+    },
+    onSuccess: clearSession,
+  });
 }

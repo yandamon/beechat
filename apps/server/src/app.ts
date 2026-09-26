@@ -19,6 +19,8 @@ import { registerErrorHandler } from './lib/errors';
 import { authRoutes } from './modules/auth/auth.routes';
 import { conversationsRoutes } from './modules/conversations/conversations.routes';
 import { friendsRoutes } from './modules/friends/friends.routes';
+import { pushRoutes } from './modules/push/push.routes';
+import { PushService, type PushSender, type VapidKeys } from './modules/push/push.service';
 import { reportsRoutes } from './modules/reports/reports.routes';
 import { uploadsRoutes } from './modules/uploads/uploads.routes';
 import { usersRoutes } from './modules/users/users.routes';
@@ -37,6 +39,17 @@ declare module 'fastify' {
 // 无论从 src/（tsx）还是 dist/（构建产物）运行，前端产物都在 ../../web/dist
 const WEB_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 
+/** 三项都配置了才启用推送；config 里已经校验过要么全有要么全无 */
+function vapidFromEnv(): VapidKeys | undefined {
+  if (!config.VAPID_PUBLIC_KEY || !config.VAPID_PRIVATE_KEY || !config.VAPID_SUBJECT)
+    return undefined;
+  return {
+    publicKey: config.VAPID_PUBLIC_KEY,
+    privateKey: config.VAPID_PRIVATE_KEY,
+    subject: config.VAPID_SUBJECT,
+  };
+}
+
 function loggerOptions() {
   if (config.NODE_ENV === 'test') return false;
   if (config.NODE_ENV === 'development') {
@@ -51,12 +64,15 @@ export interface BuildAppOptions {
   rateLimit?: boolean;
   /** 断线后多久判定离线；测试里调小 */
   presenceGraceMs?: number;
+  /** 测试里注入假的推送发送函数和密钥；不传则按环境变量决定 */
+  push?: { vapid?: VapidKeys; sender?: PushSender };
 }
 
 export async function buildApp({
   db,
   rateLimit = true,
   presenceGraceMs = LIMITS.presenceGraceMs,
+  push: pushOptions,
 }: BuildAppOptions) {
   const base = Fastify({
     logger: loggerOptions(),
@@ -86,7 +102,14 @@ export async function buildApp({
     presenceGraceMs,
   });
   const storage = createStorage();
-  const ctx: AppContext = { db, io, presence, storage, log: base.log };
+  const push = new PushService({
+    db,
+    presence,
+    log: base.log,
+    vapid: pushOptions?.vapid ?? vapidFromEnv(),
+    sender: pushOptions?.sender,
+  });
+  const ctx: AppContext = { db, io, presence, storage, push, log: base.log };
   base.decorate('ctx', ctx);
   base.decorate('io', io);
   base.addHook('onClose', async () => {
@@ -104,6 +127,7 @@ export async function buildApp({
   await app.register(conversationsRoutes, { prefix: '/api/conversations' });
   await app.register(uploadsRoutes, { prefix: '/api/uploads' });
   await app.register(reportsRoutes, { prefix: '/api/reports' });
+  await app.register(pushRoutes, { prefix: '/api/push' });
 
   // 本地存储驱动时由本服务提供图片；键名唯一，可以长期缓存
   if (storage instanceof LocalStorageDriver) {

@@ -5,6 +5,7 @@ export * from './schemas/chat';
 export * from './schemas/friends';
 export * from './schemas/uploads';
 export * from './schemas/reports';
+export * from './schemas/push';
 export * from './types/user';
 export * from './types/chat';
 export * from './types/friends';
