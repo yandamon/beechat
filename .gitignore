@@ -12,7 +12,7 @@ dist/
 !.env.example
 
 # local uploads (dev storage driver)
-uploads/
+/apps/server/uploads/
 
 # tests
 coverage/
@@ -30,4 +30,4 @@ Thumbs.db
 .claude/
 
 # local storage driver for tests
-uploads-test/
+/apps/server/uploads-test/
