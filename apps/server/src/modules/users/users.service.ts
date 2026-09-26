@@ -26,16 +26,12 @@ export async function searchUsers(
 
   if (otherIds.length > 0) {
     const friendRows = await db
-      .select({ friendId: friendships.friendId })
+      .select({ friendId: friendships.friendId, status: friendships.status })
       .from(friendships)
-      .where(
-        and(
-          eq(friendships.userId, meId),
-          eq(friendships.status, 'friend'),
-          inArray(friendships.friendId, otherIds),
-        ),
-      );
-    for (const row of friendRows) relations.set(row.friendId, 'friend');
+      .where(and(eq(friendships.userId, meId), inArray(friendships.friendId, otherIds)));
+    for (const row of friendRows) {
+      relations.set(row.friendId, row.status === 'blocked' ? 'blocked' : 'friend');
+    }
 
     const pendingRows = await db
       .select({ fromUserId: friendRequests.fromUserId, toUserId: friendRequests.toUserId })
@@ -50,8 +46,9 @@ export async function searchUsers(
         ),
       );
     for (const row of pendingRows) {
-      if (row.fromUserId === meId) relations.set(row.toUserId, 'pending_outgoing');
-      else relations.set(row.fromUserId, 'pending_incoming');
+      const otherId = row.fromUserId === meId ? row.toUserId : row.fromUserId;
+      if (relations.get(otherId) === 'blocked') continue;
+      relations.set(otherId, row.fromUserId === meId ? 'pending_outgoing' : 'pending_incoming');
     }
   }
 

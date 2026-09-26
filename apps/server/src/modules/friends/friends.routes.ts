@@ -6,11 +6,14 @@ import {
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
 import {
+  blockUser,
   createFriendRequest,
+  listBlocked,
   listFriendRequests,
   listFriends,
   removeFriend,
   respondFriendRequest,
+  unblockUser,
 } from './friends.service';
 
 export const friendsRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -25,6 +28,31 @@ export const friendsRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const { user } = requireAuth(request);
       await removeFriend(app.ctx, user.id, request.params.userId);
+      return { ok: true };
+    },
+  );
+
+  app.get('/blocked', { preHandler: app.authenticate }, async (request) => {
+    const { user } = requireAuth(request);
+    return { blocked: await listBlocked(app.ctx, user.id) };
+  });
+
+  app.post(
+    '/:userId/block',
+    { preHandler: app.authenticate, schema: { params: userIdParamSchema } },
+    async (request) => {
+      const { user } = requireAuth(request);
+      await blockUser(app.ctx, user.id, request.params.userId);
+      return { ok: true };
+    },
+  );
+
+  app.delete(
+    '/:userId/block',
+    { preHandler: app.authenticate, schema: { params: userIdParamSchema } },
+    async (request) => {
+      const { user } = requireAuth(request);
+      await unblockUser(app.ctx, user.id, request.params.userId);
       return { ok: true };
     },
   );

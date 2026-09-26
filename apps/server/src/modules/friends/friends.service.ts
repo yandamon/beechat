@@ -1,4 +1,9 @@
-import type { FriendRequestView, FriendRequestsView, FriendView } from '@beechat/shared';
+import type {
+  BlockedUserView,
+  FriendRequestView,
+  FriendRequestsView,
+  FriendView,
+} from '@beechat/shared';
 import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { AppContext } from '../../context';
@@ -22,7 +27,7 @@ import {
   joinUserSockets,
 } from '../conversations/conversations.service';
 import { insertSystemMessage } from '../conversations/messages.service';
-import { areFriends } from './friends.repo';
+import { areFriends, hasBlocked } from './friends.repo';
 
 const fromUser = alias(users, 'from_user');
 const toUser = alias(users, 'to_user');
@@ -83,6 +88,13 @@ export async function createFriendRequest(
   if (!target) throw new AppError(404, '用户不存在', 'USER_NOT_FOUND');
   if (await areFriends(db, me.id, target.id)) {
     throw new AppError(409, '你们已经是好友了', 'ALREADY_FRIENDS');
+  }
+  if (await hasBlocked(db, me.id, target.id)) {
+    throw new AppError(400, '你已拉黑对方，先解除拉黑', 'BLOCKED_BY_ME');
+  }
+  // 被对方拉黑时不透露原因
+  if (await hasBlocked(db, target.id, me.id)) {
+    throw new AppError(403, '无法添加该用户', 'BLOCKED');
   }
 
   const [pending] = await db
@@ -259,4 +271,67 @@ export async function removeFriend(ctx: AppContext, meId: number, friendId: numb
   if (deleted.length === 0) throw new AppError(404, '你们不是好友', 'NOT_FRIENDS');
   io.to(userRoom(meId)).emit('friend:removed', { userId: friendId });
   io.to(userRoom(friendId)).emit('friend:removed', { userId: meId });
+}
+
+/** 拉黑：解除好友关系，记一条 blocked 行；对方只会看到不再是好友 */
+export async function blockUser(ctx: AppContext, meId: number, targetId: number) {
+  const { db, io } = ctx;
+  if (targetId === meId) throw new AppError(400, '不能拉黑自己', 'SELF_BLOCK');
+  const [target] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+  if (!target) throw new AppError(404, '用户不存在', 'USER_NOT_FOUND');
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(friendships)
+      .where(and(eq(friendships.userId, targetId), eq(friendships.friendId, meId)));
+    await tx
+      .insert(friendships)
+      .values({ userId: meId, friendId: targetId, status: 'blocked' })
+      .onConflictDoUpdate({
+        target: [friendships.userId, friendships.friendId],
+        set: { status: 'blocked' },
+      });
+    // 双方之间未处理的申请一并作废
+    await tx
+      .delete(friendRequests)
+      .where(
+        and(
+          eq(friendRequests.status, 'pending'),
+          or(
+            and(eq(friendRequests.fromUserId, meId), eq(friendRequests.toUserId, targetId)),
+            and(eq(friendRequests.fromUserId, targetId), eq(friendRequests.toUserId, meId)),
+          ),
+        ),
+      );
+  });
+  io.to(userRoom(meId)).emit('friend:removed', { userId: targetId });
+  io.to(userRoom(targetId)).emit('friend:removed', { userId: meId });
+}
+
+/** 解除拉黑后不会自动恢复好友，需要重新申请 */
+export async function unblockUser(ctx: AppContext, meId: number, targetId: number) {
+  const deleted = await ctx.db
+    .delete(friendships)
+    .where(
+      and(
+        eq(friendships.userId, meId),
+        eq(friendships.friendId, targetId),
+        eq(friendships.status, 'blocked'),
+      ),
+    )
+    .returning({ userId: friendships.userId });
+  if (deleted.length === 0) throw new AppError(404, '没有拉黑这个用户', 'NOT_BLOCKED');
+}
+
+export async function listBlocked(ctx: AppContext, meId: number): Promise<BlockedUserView[]> {
+  const rows = await ctx.db
+    .select({ user: users, blockedAt: friendships.createdAt })
+    .from(friendships)
+    .innerJoin(users, eq(users.id, friendships.friendId))
+    .where(and(eq(friendships.userId, meId), eq(friendships.status, 'blocked')))
+    .orderBy(desc(friendships.createdAt));
+  return rows.map((row) => ({ ...toPublicUser(row.user), blockedAt: row.blockedAt.toISOString() }));
 }

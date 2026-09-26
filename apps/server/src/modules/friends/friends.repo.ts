@@ -10,6 +10,22 @@ export async function getFriendIds(db: DbLike, userId: number): Promise<number[]
   return rows.map((row) => row.friendId);
 }
 
+/** userId 是否拉黑了 otherId */
+export async function hasBlocked(db: DbLike, userId: number, otherId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ userId: friendships.userId })
+    .from(friendships)
+    .where(
+      and(
+        eq(friendships.userId, userId),
+        eq(friendships.friendId, otherId),
+        eq(friendships.status, 'blocked'),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function areFriends(db: DbLike, userId: number, otherId: number): Promise<boolean> {
   const [row] = await db
     .select({ userId: friendships.userId })

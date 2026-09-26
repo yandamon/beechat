@@ -8,6 +8,7 @@ export const queryKeys = {
   allMessages: ['messages'] as const,
   friends: ['friends', 'list'] as const,
   friendRequests: ['friends', 'requests'] as const,
+  blocked: ['friends', 'blocked'] as const,
   userSearch: (q: string) => ['users', 'search', q] as const,
 };
 

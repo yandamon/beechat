@@ -129,3 +129,33 @@ test('演示账号一键登录能看到预置数据', async ({ page }) => {
   await page.getByRole('link', { name: /小蜜蜂助手/ }).click();
   await expect(page.getByText('欢迎来试用')).toBeVisible();
 });
+
+test('拉黑好友后对方无法再申请，解除拉黑后恢复', async ({ browser }) => {
+  const { pageA, pageB, alice, bob, close } = await twoUsers(browser);
+  try {
+    await befriend(pageA, pageB);
+
+    // alice 在好友页拉黑 bob：好友列表清空，黑名单里出现 bob
+    await pageA.goto('/friends');
+    pageA.once('dialog', (dialog) => void dialog.accept());
+    await pageA.getByRole('button', { name: '拉黑', exact: true }).click();
+    await expect(pageA.getByText('还没有好友')).toBeVisible();
+    const blocked = pageA.locator('section', { hasText: '黑名单' });
+    await expect(blocked.getByText(bob, { exact: true })).toBeVisible();
+
+    // bob 这边好友也没了，再申请会被拒绝
+    await pageB.goto('/friends');
+    await expect(pageB.getByText('还没有好友')).toBeVisible();
+    await pageB.getByPlaceholder('输入用户名搜索').fill(alice);
+    await pageB.getByRole('button', { name: '加好友' }).click();
+    await expect(pageB.getByText('无法添加该用户')).toBeVisible();
+
+    // alice 解除拉黑后，bob 可以重新申请
+    await pageA.getByRole('button', { name: '解除拉黑' }).click();
+    await expect(pageA.getByText('黑名单')).toBeHidden();
+    await pageB.getByRole('button', { name: '加好友' }).click();
+    await expect(pageB.getByText('已申请')).toBeVisible();
+  } finally {
+    await close();
+  }
+});

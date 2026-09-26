@@ -138,6 +138,12 @@ export const t = {
     reject: '拒绝',
     message: '发消息',
     remove: '删除',
+    block: '拉黑',
+    unblock: '解除拉黑',
+    blocked: '已拉黑',
+    blockedTitle: '黑名单',
+    confirmBlock: (name: string) =>
+      `确定拉黑 ${name} 吗？会解除好友关系，对方不能再给你发消息或申请加好友。`,
     self: '这是你',
     alreadyFriends: '已是好友',
     incomingTitle: '收到的申请',

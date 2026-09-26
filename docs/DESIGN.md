@@ -2,7 +2,7 @@
 
 > 状态：已确认，2026-09-22。本文档是全部产品与技术决定的唯一来源：先改这里，再改代码。
 >
-> 进度：2026-09-26 v1 范围内的功能已全部实现并有测试覆盖，v1.1 中的撤回、私聊已读回执、桌面通知、引用回复、注销账号、演示助手也已完成；线上图片存储仍用本地驱动，等 R2 密钥填入后切换。
+> 进度：2026-09-26 v1 范围内的功能已全部实现并有测试覆盖，v1.1 中的撤回、私聊已读回执、桌面通知、引用回复、注销账号、演示助手、拉黑也已完成；线上图片存储仍用本地驱动，等 R2 密钥填入后切换。
 
 ## 1. 定位与目标
 
@@ -25,7 +25,7 @@
 
 ### v1.1
 
-Web 推送、拉黑、举报。已提前完成：自定义群头像（群主通过 PATCH /api/conversations/:id 设置 avatarKey）、消息回应（message_reactions 表，固定六个表情，汇总广播）、置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
+Web 推送、举报。已提前完成：拉黑（`friendships` 里一行单向的 `blocked`；拉黑即解除好友并删除双方待处理的申请，之后双方都不能在原私聊里发消息，被拉黑方申请加好友时只得到“无法添加该用户”，拉黑方在搜索结果和黑名单里可以解除）、自定义群头像（群主通过 PATCH /api/conversations/:id 设置 avatarKey）、消息回应（message_reactions 表，固定六个表情，汇总广播）、置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
 
 ### v2
 
@@ -51,7 +51,7 @@ Web 推送、拉黑、举报。已提前完成：自定义群头像（群主通�
 - 搜索用户名，发送申请（可附不超过 100 字的验证消息），对方同意或拒绝；被拒可再申请，不设冷却。
 - 只有好友之间才能私聊；群内非好友需先加好友。
 - 删除好友：保留会话与历史，双方不能再发新消息，重新成为好友后恢复。
-- 拉黑放 v1.1，`friendships.status` 预留 `blocked`。
+- 拉黑是单向的：只在拉黑方那一行记 `blocked`，被拉黑方看不出自己被拉黑；解除拉黑不会自动恢复好友关系，需要重新申请。
 
 ### 3.3 群
 
@@ -196,15 +196,15 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 
 ## 8. REST 接口
 
-| 分组          | 接口                                                                                                                                                                                                      |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| auth          | `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`、`POST /api/auth/logout-all`、`GET /api/auth/me`、`POST /api/auth/demo`                                                        |
-| users         | `GET /api/users/search?q=`、`PATCH /api/users/me`                                                                                                                                                         |
-| friends       | `GET /api/friends`、`DELETE /api/friends/:userId`、`GET /api/friends/requests`、`POST /api/friends/requests`、`POST /api/friends/requests/:id/accept`、`POST /api/friends/requests/:id/reject`            |
-| conversations | `GET /api/conversations`、`POST /api/conversations`、`GET /api/conversations/:id`、`PATCH /api/conversations/:id`、`POST /api/conversations/:id/members`、`DELETE /api/conversations/:id/members/:userId` |
-| messages      | `GET /api/conversations/:id/messages?before=&limit=`                                                                                                                                                      |
-| uploads       | `POST /api/uploads/presign`、`POST /api/uploads/complete`                                                                                                                                                 |
-| health        | `GET /api/health`                                                                                                                                                                                         |
+| 分组          | 接口                                                                                                                                                                                                                                                                                               |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| auth          | `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`、`POST /api/auth/logout-all`、`GET /api/auth/me`、`POST /api/auth/demo`                                                                                                                                                 |
+| users         | `GET /api/users/search?q=`、`PATCH /api/users/me`                                                                                                                                                                                                                                                  |
+| friends       | `GET /api/friends`、`DELETE /api/friends/:userId`、`GET /api/friends/requests`、`POST /api/friends/requests`、`POST /api/friends/requests/:id/accept`、`POST /api/friends/requests/:id/reject`、`GET /api/friends/blocked`、`POST /api/friends/:userId/block`、`DELETE /api/friends/:userId/block` |
+| conversations | `GET /api/conversations`、`POST /api/conversations`、`GET /api/conversations/:id`、`PATCH /api/conversations/:id`、`POST /api/conversations/:id/members`、`DELETE /api/conversations/:id/members/:userId`                                                                                          |
+| messages      | `GET /api/conversations/:id/messages?before=&limit=`                                                                                                                                                                                                                                               |
+| uploads       | `POST /api/uploads/presign`、`POST /api/uploads/complete`                                                                                                                                                                                                                                          |
+| health        | `GET /api/health`                                                                                                                                                                                                                                                                                  |
 
 所有入参用 `packages/shared` 里的 zod schema 校验；错误统一返回 `{ message }`。
 

@@ -56,8 +56,32 @@ function useInvalidateFriends() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.friends });
     void queryClient.invalidateQueries({ queryKey: queryKeys.friendRequests });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.blocked });
     void queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
   };
+}
+
+export function useBlocked() {
+  return useQuery({
+    queryKey: queryKeys.blocked,
+    queryFn: async () => (await friendsApi.blocked()).blocked,
+  });
+}
+
+export function useBlockUser() {
+  const invalidate = useInvalidateFriends();
+  return useMutation({
+    mutationFn: (userId: number) => friendsApi.block(userId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUnblockUser() {
+  const invalidate = useInvalidateFriends();
+  return useMutation({
+    mutationFn: (userId: number) => friendsApi.unblock(userId),
+    onSuccess: invalidate,
+  });
 }
 
 export function useSendFriendRequest() {

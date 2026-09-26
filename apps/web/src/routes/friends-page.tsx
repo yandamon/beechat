@@ -1,4 +1,9 @@
-import type { FriendRequestView, FriendView, UserSearchResult } from '@beechat/shared';
+import type {
+  BlockedUserView,
+  FriendRequestView,
+  FriendView,
+  UserSearchResult,
+} from '@beechat/shared';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -7,6 +12,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMe } from '@/features/auth/use-auth';
 import {
+  useBlockUser,
+  useBlocked,
   useFriendRequests,
   useFriends,
   useOpenConversation,
@@ -14,6 +21,7 @@ import {
   useRespondFriendRequest,
   useSearchUsers,
   useSendFriendRequest,
+  useUnblockUser,
 } from '@/features/chat/queries';
 import { t } from '@/i18n/zh-CN';
 import { useDebounce } from '@/lib/use-debounce';
@@ -36,6 +44,7 @@ export function FriendsPage() {
         <SearchSection />
         <RequestsSection />
         <FriendsSection />
+        <BlockedSection />
       </div>
     </div>
   );
@@ -81,10 +90,23 @@ function SearchResultRow({ user }: { user: UserSearchResult }) {
   const open = useOpenConversation();
   const requests = useFriendRequests();
   const respond = useRespondFriendRequest();
+  const unblock = useUnblockUser();
 
   const incoming = requests.data?.incoming.find((request) => request.from.id === user.id);
   let action: React.ReactNode;
   switch (user.relation) {
+    case 'blocked':
+      action = (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => unblock.mutate(user.id)}
+          disabled={unblock.isPending}
+        >
+          {t.friends.unblock}
+        </Button>
+      );
+      break;
     case 'self':
       action = <span className="text-xs text-muted-foreground">{t.friends.self}</span>;
       break;
@@ -244,8 +266,12 @@ function FriendRow({ friend }: { friend: FriendView }) {
   const me = useMe();
   const open = useOpenConversation();
   const remove = useRemoveFriend();
+  const block = useBlockUser();
   const onRemove = () => {
     if (window.confirm(t.friends.confirmRemove(friend.displayName))) remove.mutate(friend.id);
+  };
+  const onBlock = () => {
+    if (window.confirm(t.friends.confirmBlock(friend.displayName))) block.mutate(friend.id);
   };
   return (
     <li className="flex items-center gap-3 p-3">
@@ -272,7 +298,40 @@ function FriendRow({ friend }: { friend: FriendView }) {
         <Button size="sm" variant="ghost" onClick={onRemove} disabled={remove.isPending}>
           {t.friends.remove}
         </Button>
+        <Button size="sm" variant="ghost" onClick={onBlock} disabled={block.isPending}>
+          {t.friends.block}
+        </Button>
       </div>
     </li>
+  );
+}
+
+function BlockedSection() {
+  const blocked = useBlocked();
+  const unblock = useUnblockUser();
+  if (!blocked.data || blocked.data.length === 0) return null;
+  return (
+    <section>
+      <SectionTitle>{t.friends.blockedTitle}</SectionTitle>
+      <ul className="divide-y divide-border rounded-xl border border-border">
+        {blocked.data.map((user: BlockedUserView) => (
+          <li key={user.id} className="flex items-center gap-3 p-3">
+            <UserAvatar name={user.displayName} seed={user.id} src={user.avatarUrl} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{user.displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => unblock.mutate(user.id)}
+              disabled={unblock.isPending}
+            >
+              {t.friends.unblock}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

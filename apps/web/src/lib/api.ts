@@ -1,6 +1,7 @@
 import type {
   AddMembersInput,
   AuthResponse,
+  BlockedUserView,
   ConversationView,
   CreateGroupConversationInput,
   CreateFriendRequestInput,
@@ -113,6 +114,10 @@ export const friendsApi = {
   reject: (id: number) =>
     api<{ request: FriendRequestView }>(`/api/friends/requests/${id}/reject`, { method: 'POST' }),
   remove: (userId: number) => api<{ ok: true }>(`/api/friends/${userId}`, { method: 'DELETE' }),
+  blocked: () => api<{ blocked: BlockedUserView[] }>('/api/friends/blocked'),
+  block: (userId: number) => api<{ ok: true }>(`/api/friends/${userId}/block`, { method: 'POST' }),
+  unblock: (userId: number) =>
+    api<{ ok: true }>(`/api/friends/${userId}/block`, { method: 'DELETE' }),
 };
 
 export interface MessagesParams {
