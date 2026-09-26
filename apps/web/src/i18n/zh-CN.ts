@@ -155,6 +155,24 @@ export const t = {
     confirmRemove: (name: string) =>
       `确定删除好友 ${name} 吗？会话和历史消息会保留，但双方不能再发消息。`,
   },
+  report: {
+    action: '举报',
+    title: (name: string) => `举报 ${name}`,
+    description: '举报会交给人工处理，对方不会收到通知。',
+    reasonLabel: '原因',
+    reasons: {
+      harassment: '骚扰或辱骂',
+      spam: '垃圾广告',
+      inappropriate: '不当内容',
+      other: '其他',
+    },
+    detailPlaceholder: '补充说明（可选）',
+    submit: '提交举报',
+    submitting: '提交中…',
+    done: '已收到你的举报，我们会尽快处理。',
+    cancel: '取消',
+    close: '关闭',
+  },
   theme: {
     light: '浅色',
     dark: '深色',

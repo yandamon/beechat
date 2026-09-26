@@ -19,6 +19,7 @@ import { registerErrorHandler } from './lib/errors';
 import { authRoutes } from './modules/auth/auth.routes';
 import { conversationsRoutes } from './modules/conversations/conversations.routes';
 import { friendsRoutes } from './modules/friends/friends.routes';
+import { reportsRoutes } from './modules/reports/reports.routes';
 import { uploadsRoutes } from './modules/uploads/uploads.routes';
 import { usersRoutes } from './modules/users/users.routes';
 import { authPlugin } from './plugins/auth';
@@ -102,6 +103,7 @@ export async function buildApp({
   await app.register(friendsRoutes, { prefix: '/api/friends' });
   await app.register(conversationsRoutes, { prefix: '/api/conversations' });
   await app.register(uploadsRoutes, { prefix: '/api/uploads' });
+  await app.register(reportsRoutes, { prefix: '/api/reports' });
 
   // 本地存储驱动时由本服务提供图片；键名唯一，可以长期缓存
   if (storage instanceof LocalStorageDriver) {

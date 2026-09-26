@@ -31,6 +31,12 @@ export const conversationType = pgEnum('conversation_type', ['direct', 'group'])
 export const memberRole = pgEnum('member_role', ['owner', 'member']);
 export const messageType = pgEnum('message_type', ['text', 'image', 'system']);
 export const uploadKind = pgEnum('upload_kind', ['image', 'avatar']);
+export const reportReason = pgEnum('report_reason', [
+  'harassment',
+  'spam',
+  'inappropriate',
+  'other',
+]);
 
 const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow();
 
@@ -240,3 +246,27 @@ export const appSettings = pgTable('app_settings', {
 });
 
 export type AppSetting = typeof appSettings.$inferSelect;
+/** 举报记录：只落库和打日志供人工处理，没有后台界面 */
+export const reports = pgTable(
+  'reports',
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    reporterId: integer()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    targetUserId: integer()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 被举报的消息；消息删除后置空，举报本身保留 */
+    messageId: bigint({ mode: 'number' }).references(() => messages.id, { onDelete: 'set null' }),
+    reason: reportReason().notNull(),
+    detail: text(),
+    /** 举报时的消息内容快照，消息撤回后仍可查看 */
+    snapshot: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('reports_target_user_id_idx').on(t.targetUserId),
+    uniqueIndex('reports_reporter_message_idx').on(t.reporterId, t.messageId),
+  ],
+);

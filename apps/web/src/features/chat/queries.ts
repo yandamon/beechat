@@ -1,7 +1,7 @@
-import { LIMITS } from '@beechat/shared';
+import { type CreateReportInput, LIMITS } from '@beechat/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { chatApi, friendsApi } from '@/lib/api';
+import { chatApi, friendsApi, reportsApi } from '@/lib/api';
 import {
   applyReactions,
   queryKeys,
@@ -202,4 +202,9 @@ export function useToggleReaction(conversationId: number) {
     onSuccess: (reactions, { messageId }) =>
       applyReactions(queryClient, conversationId, messageId, reactions),
   });
+}
+
+/** 举报用户或消息：只是记录，不影响任何本地状态 */
+export function useReport() {
+  return useMutation({ mutationFn: (input: CreateReportInput) => reportsApi.create(input) });
 }

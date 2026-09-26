@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   BlockedUserView,
   ConversationView,
+  CreateReportInput,
   CreateGroupConversationInput,
   CreateFriendRequestInput,
   FriendRequestView,
@@ -125,6 +126,11 @@ export interface MessagesParams {
   after?: number;
   limit?: number;
 }
+
+export const reportsApi = {
+  create: (body: CreateReportInput) =>
+    api<{ report: { id: number } }>('/api/reports', { method: 'POST', body }),
+};
 
 export const chatApi = {
   conversations: () => api<{ conversations: ConversationView[] }>('/api/conversations'),

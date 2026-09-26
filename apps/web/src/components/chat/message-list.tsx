@@ -1,5 +1,5 @@
 import { ALLOWED_REACTIONS, type AttachmentView, LIMITS } from '@beechat/shared';
-import { Reply, SmilePlus, Undo2 } from 'lucide-react';
+import { Flag, Reply, SmilePlus, Undo2 } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -23,6 +23,8 @@ interface MessageListProps {
   onRecall: (message: LocalMessage) => void;
   onReply: (message: LocalMessage) => void;
   onReact: (message: LocalMessage, emoji: string) => void;
+  /** 举报别人发的消息 */
+  onReport: (message: LocalMessage) => void;
   /** 把发送者 id 变成名字，引用块和群消息都用它 */
   nameOf: (senderId: number | null) => string;
 }
@@ -44,6 +46,7 @@ export function MessageList({
   onRecall,
   onReply,
   onReact,
+  onReport,
   nameOf,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -140,6 +143,7 @@ export function MessageList({
                   onRecall={onRecall}
                   onReply={onReply}
                   onReact={onReact}
+                  onReport={onReport}
                   nameOf={nameOf}
                   meId={meId}
                 />
@@ -232,6 +236,7 @@ function Bubble({
   onRecall,
   onReply,
   onReact,
+  onReport,
   nameOf,
   meId,
 }: {
@@ -243,6 +248,7 @@ function Bubble({
   onRecall: (message: LocalMessage) => void;
   onReply: (message: LocalMessage) => void;
   onReact: (message: LocalMessage, emoji: string) => void;
+  onReport: (message: LocalMessage) => void;
   nameOf: (senderId: number | null) => string;
   meId: number;
 }) {
@@ -322,6 +328,21 @@ function Bubble({
             className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
           >
             <Reply className="size-3.5" />
+          </button>
+        ) : null}
+        {!mine &&
+        message.senderId !== null &&
+        !message.pending &&
+        !message.failed &&
+        message.id > 0 ? (
+          <button
+            type="button"
+            onClick={() => onReport(message)}
+            title={t.report.action}
+            aria-label={t.report.action}
+            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
+          >
+            <Flag className="size-3.5" />
           </button>
         ) : null}
         {canRecall ? (

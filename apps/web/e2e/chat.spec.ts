@@ -159,3 +159,35 @@ test('拉黑好友后对方无法再申请，解除拉黑后恢复', async ({ br
     await close();
   }
 });
+
+test('举报一条消息', async ({ browser }) => {
+  const { pageA, pageB, alice, bob, close } = await twoUsers(browser);
+  try {
+    await befriend(pageA, pageB);
+
+    // bob 发一条广告
+    await pageB.goto('/');
+    await pageB.getByRole('link', { name: new RegExp(alice) }).click();
+    const composerB = pageB.getByPlaceholder(/输入消息/);
+    await composerB.fill('加我微信有好货');
+    await composerB.press('Enter');
+
+    // alice 打开会话，悬停消息点“举报”，填原因提交
+    await pageA.goto('/');
+    await pageA.getByRole('link', { name: new RegExp(bob) }).click();
+    const bubble = messages(pageA).getByText('加我微信有好货');
+    await expect(bubble).toBeVisible();
+    await bubble.hover();
+    await messages(pageA).getByRole('button', { name: '举报' }).click();
+    const dialog = pageA.getByRole('dialog');
+    await expect(dialog.getByText('加我微信有好货')).toBeVisible();
+    await dialog.getByLabel('垃圾广告').check();
+    await dialog.getByPlaceholder('补充说明（可选）').fill('广告');
+    await dialog.getByRole('button', { name: '提交举报' }).click();
+    await expect(dialog.getByText('已收到你的举报')).toBeVisible();
+    await pageA.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  } finally {
+    await close();
+  }
+});

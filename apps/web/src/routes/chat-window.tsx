@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, ChevronLeft, Pin, PinOff } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, Flag, Pin, PinOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Composer, type QuoteBar } from '@/components/chat/composer';
 import { GroupInfoDialog } from '@/components/chat/group-info-dialog';
 import { MessageList } from '@/components/chat/message-list';
+import { ReportDialog, type ReportTarget } from '@/components/report-dialog';
 import { UserAvatar } from '@/components/user-avatar';
 import { buttonVariants } from '@/components/ui/button';
 import { useMe } from '@/features/auth/use-auth';
@@ -42,9 +43,13 @@ export function ChatWindow() {
   const membership = useUpdateMembership(conversationId);
   const reaction = useToggleReaction(conversationId);
   const [replyTarget, setReplyTarget] = useState<LocalMessage | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
-  // 切换会话时清掉正在回复的消息
-  useEffect(() => setReplyTarget(null), [conversationId]);
+  // 切换会话时清掉正在回复的消息和举报弹窗
+  useEffect(() => {
+    setReplyTarget(null);
+    setReportTarget(null);
+  }, [conversationId]);
 
   // 告诉实时同步层当前开着哪个会话，它据此决定新消息算不算未读
   useEffect(() => {
@@ -171,8 +176,20 @@ export function ChatWindow() {
         >
           {conversation.muted ? <BellOff /> : <Bell />}
         </button>
+        {!isGroup && peer ? (
+          <button
+            type="button"
+            onClick={() => setReportTarget({ userId: peer.id, name: peer.displayName })}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+            aria-label={t.report.action}
+            title={t.report.action}
+          >
+            <Flag />
+          </button>
+        ) : null}
         {isGroup ? <GroupInfoDialog conversation={conversation} meId={meId} /> : null}
       </header>
+      <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
 
       <MessageList
         key={conversationId}
@@ -188,6 +205,15 @@ export function ChatWindow() {
         onRecall={(message) => recall.mutate(message.id)}
         onReply={setReplyTarget}
         onReact={(message, emoji) => reaction.mutate({ messageId: message.id, emoji })}
+        onReport={(message) => {
+          if (message.senderId === null) return;
+          setReportTarget({
+            userId: message.senderId,
+            name: nameOf(message.senderId),
+            messageId: message.id,
+            preview: message.type === 'image' ? t.chat.imageMessage : (message.content ?? ''),
+          });
+        }}
         nameOf={nameOf}
       />
 
