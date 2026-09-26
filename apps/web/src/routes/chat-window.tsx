@@ -15,6 +15,7 @@ import {
   useFriends,
   useMessages,
   useRecallMessage,
+  useToggleReaction,
   useUpdateMembership,
 } from '@/features/chat/queries';
 import { useActiveConversationStore, useTypingUsers } from '@/features/chat/stores';
@@ -39,6 +40,7 @@ export function ChatWindow() {
   const { send, sendImage, retry } = useSendMessage(conversationId, meId);
   const recall = useRecallMessage(conversationId);
   const membership = useUpdateMembership(conversationId);
+  const reaction = useToggleReaction(conversationId);
   const [replyTarget, setReplyTarget] = useState<LocalMessage | null>(null);
 
   // 切换会话时清掉正在回复的消息
@@ -185,6 +187,7 @@ export function ChatWindow() {
         onRetry={retry}
         onRecall={(message) => recall.mutate(message.id)}
         onReply={setReplyTarget}
+        onReact={(message, emoji) => reaction.mutate({ messageId: message.id, emoji })}
         nameOf={nameOf}
       />
 

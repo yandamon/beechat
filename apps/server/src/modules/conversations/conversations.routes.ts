@@ -5,6 +5,7 @@ import {
   memberParamsSchema,
   messageParamsSchema,
   messagesQuerySchema,
+  toggleReactionSchema,
   updateConversationSchema,
   updateMembershipSchema,
 } from '@beechat/shared';
@@ -19,6 +20,7 @@ import {
 } from './conversations.service';
 import { addMembers, createGroup, removeMember, renameGroup } from './groups.service';
 import { getMessages, recallMessage } from './messages.service';
+import { toggleReaction } from './reactions.service';
 
 export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get('/', { preHandler: app.authenticate }, async (request) => {
@@ -109,6 +111,25 @@ export const conversationsRoutes: FastifyPluginAsyncZod = async (app) => {
       return {
         message: await recallMessage(app.ctx, user.id, request.params.id, request.params.messageId),
       };
+    },
+  );
+
+  app.post(
+    '/:id/messages/:messageId/reactions',
+    {
+      preHandler: app.authenticate,
+      schema: { params: messageParamsSchema, body: toggleReactionSchema },
+    },
+    async (request) => {
+      const { user } = requireAuth(request);
+      const reactions = await toggleReaction(
+        app.ctx,
+        user.id,
+        request.params.id,
+        request.params.messageId,
+        request.body.emoji,
+      );
+      return { reactions };
     },
   );
 

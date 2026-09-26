@@ -23,6 +23,7 @@ import { maybeReplyAsBot } from '../demo/bot';
 import { areFriends } from '../friends/friends.repo';
 import { requireCompletedUpload } from '../uploads/uploads.service';
 import { assertMember } from './conversations.service';
+import { summarizeReactions } from './reactions.service';
 
 /** 系统消息：没有发送者，例如“你们已经成为好友” */
 export async function insertSystemMessage(
@@ -202,8 +203,12 @@ export async function getMessages(
   };
 }
 
-/** 一次查出这一页引用到的消息，拼进视图 */
+/** 一次查出这一页引用到的消息和回应汇总，拼进视图 */
 async function withReplies(db: DbLike, rows: Message[]): Promise<MessageView[]> {
+  const reactions = await summarizeReactions(
+    db,
+    rows.map((row) => row.id),
+  );
   const ids = [
     ...new Set(rows.map((row) => row.replyToId).filter((id): id is number => id !== null)),
   ];
@@ -211,7 +216,11 @@ async function withReplies(db: DbLike, rows: Message[]): Promise<MessageView[]> 
     ids.length > 0 ? await db.select().from(messages).where(inArray(messages.id, ids)) : [];
   const byId = new Map(quoted.map((row) => [row.id, row]));
   return rows.map((row) =>
-    toMessageView(row, row.replyToId ? (byId.get(row.replyToId) ?? null) : null),
+    toMessageView(
+      row,
+      row.replyToId ? (byId.get(row.replyToId) ?? null) : null,
+      reactions.get(row.id) ?? [],
+    ),
   );
 }
 

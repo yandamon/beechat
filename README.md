@@ -6,8 +6,8 @@
 
 ## 当前进度
 
-- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知、断线提示、深色模式、PWA 可安装、Railway 部署、Playwright 端到端测试。
-- 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）；之后是消息回应、Web 推送、拉黑与举报、群头像等。
+- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、好友搜索与申请、一对一私聊、群聊（建群、改名、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、消息回应、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知、断线提示、深色模式、PWA 可安装、Railway 部署、Playwright 端到端测试。
+- 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）；之后是 Web 推送、拉黑与举报、群头像等。
 - 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
 
 ## 技术栈
@@ -117,8 +117,13 @@ NODE_ENV=production pnpm start
 3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`。
 4. Settings 里 Networking 一栏点 Generate Domain，得到公网地址。
 
-之后每次推送到 `main` 都会自动重新部署。当前线上地址：https://beechat-production-a1d7.up.railway.app
+仓库连接时没有安装 Railway 的 GitHub App，推送不会自动触发部署；在 Railway 控制台的 Settings 里连接 GitHub 账号后即可自动部署，或者在仓库根目录用 CLI 手动部署：
+
+````bash
+railway up --service beechat --ci
+```当前线上地址：https://beechat-production-a1d7.up.railway.app
 
 ## 许可证
 
 [MIT](LICENSE)
+````

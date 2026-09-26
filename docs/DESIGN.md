@@ -25,7 +25,7 @@
 
 ### v1.1
 
-消息回应、Web 推送、拉黑、举报、自定义群头像。已提前完成：置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
+Web 推送、拉黑、举报、自定义群头像。已提前完成：消息回应（message_reactions 表，固定六个表情，汇总广播）、置顶与免打扰（conversation_members.pinned/muted，仅影响本人；免打扰不弹通知、不计入标题未读）、引用回复（`messages.reply_to_id` 自引用，视图带 80 字摘要）、注销账号（密码确认，退群转让、删私聊、清文件后删用户）、演示助手自动回复（仅对与 beebot 的私聊生效）、私聊已读回执（`conversation:read` 推给整个会话）、两分钟内撤回（软删除并广播 `message:updated`，历史里保留占位）、桌面通知（页面不在前台或没开着该会话时，用 Notification API 提醒，需用户在侧栏打开）。
 
 ### v2
 

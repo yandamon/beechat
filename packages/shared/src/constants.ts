@@ -20,5 +20,9 @@ export const LIMITS = {
   recallWindowMs: 2 * 60_000,
 } as const;
 
+/** 消息回应可用的表情，固定一小组，避免存任意字符串 */
+export const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'] as const;
+export type Reaction = (typeof ALLOWED_REACTIONS)[number];
+
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];

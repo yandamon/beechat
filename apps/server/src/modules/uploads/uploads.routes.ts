@@ -1,4 +1,9 @@
-import { ALLOWED_IMAGE_TYPES, LIMITS, completeUploadSchema, presignUploadSchema } from '@beechat/shared';
+import {
+  ALLOWED_IMAGE_TYPES,
+  LIMITS,
+  completeUploadSchema,
+  presignUploadSchema,
+} from '@beechat/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';

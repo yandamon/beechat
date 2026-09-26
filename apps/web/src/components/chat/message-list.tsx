@@ -1,7 +1,8 @@
-import { type AttachmentView, LIMITS } from '@beechat/shared';
-import { Reply, Undo2 } from 'lucide-react';
+import { ALLOWED_REACTIONS, type AttachmentView, LIMITS } from '@beechat/shared';
+import { Reply, SmilePlus, Undo2 } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { LocalMessage } from '@/features/chat/cache';
 import { t } from '@/i18n/zh-CN';
 import { formatMessageTime } from '@/lib/format';
@@ -21,6 +22,7 @@ interface MessageListProps {
   onRetry: (message: LocalMessage) => void;
   onRecall: (message: LocalMessage) => void;
   onReply: (message: LocalMessage) => void;
+  onReact: (message: LocalMessage, emoji: string) => void;
   /** 把发送者 id 变成名字，引用块和群消息都用它 */
   nameOf: (senderId: number | null) => string;
 }
@@ -41,6 +43,7 @@ export function MessageList({
   onRetry,
   onRecall,
   onReply,
+  onReact,
   nameOf,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -136,7 +139,9 @@ export function MessageList({
                   onRetry={onRetry}
                   onRecall={onRecall}
                   onReply={onReply}
+                  onReact={onReact}
                   nameOf={nameOf}
+                  meId={meId}
                 />
               )}
             </li>
@@ -226,7 +231,9 @@ function Bubble({
   onRetry,
   onRecall,
   onReply,
+  onReact,
   nameOf,
+  meId,
 }: {
   message: LocalMessage;
   mine: boolean;
@@ -235,7 +242,9 @@ function Bubble({
   onRetry: (message: LocalMessage) => void;
   onRecall: (message: LocalMessage) => void;
   onReply: (message: LocalMessage) => void;
+  onReact: (message: LocalMessage, emoji: string) => void;
   nameOf: (senderId: number | null) => string;
+  meId: number;
 }) {
   const isImage = message.type === 'image' && message.attachment !== null;
   const canRecall =
@@ -278,6 +287,33 @@ function Bubble({
           </div>
         )}
         {!message.pending && !message.failed && message.id > 0 ? (
+          <Popover>
+            <PopoverTrigger
+              title={t.chat.react}
+              aria-label={t.chat.react}
+              className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100 data-open:opacity-100"
+            >
+              <SmilePlus className="size-3.5" />
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align={mine ? 'end' : 'start'}
+              className="w-auto flex-row gap-0.5 p-1"
+            >
+              {ALLOWED_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onReact(message, emoji)}
+                  className="flex size-8 items-center justify-center rounded-md text-lg hover:bg-muted"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        ) : null}
+        {!message.pending && !message.failed && message.id > 0 ? (
           <button
             type="button"
             onClick={() => onReply(message)}
@@ -300,6 +336,30 @@ function Bubble({
           </button>
         ) : null}
       </div>
+      {message.reactions.length > 0 ? (
+        <div className={cn('flex flex-wrap gap-1', mine ? 'justify-end' : 'justify-start')}>
+          {message.reactions.map((reaction) => {
+            const reacted = reaction.userIds.includes(meId);
+            return (
+              <button
+                key={reaction.emoji}
+                type="button"
+                onClick={() => onReact(message, reaction.emoji)}
+                aria-pressed={reacted}
+                className={cn(
+                  'flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors',
+                  reacted
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
+                )}
+              >
+                <span>{reaction.emoji}</span>
+                <span>{reaction.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         {message.failed ? (
           <>

@@ -64,6 +64,7 @@ export const t = {
     me: '我',
     emoji: '表情',
     read: '已读',
+    react: '回应',
     reply: '回复',
     replyingTo: (name: string) => `回复 ${name}`,
     cancelReply: '取消回复',

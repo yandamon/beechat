@@ -36,7 +36,12 @@ describe('uploads, images and avatars', () => {
     return socket;
   };
   const presign = (as: TestUser, body: Record<string, unknown>) =>
-    ctx.app.inject({ method: 'POST', url: '/api/uploads/presign', cookies: as.cookies, payload: body });
+    ctx.app.inject({
+      method: 'POST',
+      url: '/api/uploads/presign',
+      cookies: as.cookies,
+      payload: body,
+    });
   const put = (as: TestUser, key: string, bytes: Buffer, mime = 'image/png') =>
     ctx.app.inject({
       method: 'PUT',
@@ -99,7 +104,11 @@ describe('uploads, images and avatars', () => {
     if (!ack.ok) return;
     expect(ack.message.type).toBe('image');
     expect(ack.message.content).toBeNull();
-    expect(ack.message.attachment).toMatchObject({ url: `/uploads/${key}`, width: 640, height: 480 });
+    expect(ack.message.attachment).toMatchObject({
+      url: `/uploads/${key}`,
+      width: 640,
+      height: 480,
+    });
     expect((await incoming).attachment?.url).toBe(`/uploads/${key}`);
 
     const history = await ctx.app.inject({
@@ -156,7 +165,10 @@ describe('uploads, images and avatars', () => {
       payload: { avatarKey: key, displayName: '爱丽丝' },
     });
     expect(updated.statusCode).toBe(200);
-    expect(updated.json().user).toMatchObject({ displayName: '爱丽丝', avatarUrl: `/uploads/${key}` });
+    expect(updated.json().user).toMatchObject({
+      displayName: '爱丽丝',
+      avatarUrl: `/uploads/${key}`,
+    });
 
     const me = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', cookies: alice.cookies });
     expect(me.json().user.avatarUrl).toBe(`/uploads/${key}`);

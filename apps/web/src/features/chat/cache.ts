@@ -1,4 +1,4 @@
-import type { ConversationView, MessagePage, MessageView } from '@beechat/shared';
+import type { ConversationView, MessagePage, MessageView, ReactionSummary } from '@beechat/shared';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import type { FriendView } from '@beechat/shared';
 
@@ -197,4 +197,25 @@ export function replaceMessage(queryClient: QueryClient, message: MessageView) {
         : conversation,
     ),
   );
+}
+
+/** 某条消息的回应汇总更新 */
+export function applyReactions(
+  queryClient: QueryClient,
+  conversationId: number,
+  messageId: number,
+  reactions: ReactionSummary[],
+) {
+  queryClient.setQueryData<MessagesData>(queryKeys.messages(conversationId), (data) => {
+    if (!data) return data;
+    return {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        messages: page.messages.map((entry) =>
+          entry.id === messageId ? { ...entry, reactions } : entry,
+        ),
+      })),
+    };
+  });
 }

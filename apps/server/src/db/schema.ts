@@ -204,6 +204,25 @@ export const uploads = pgTable(
   (t) => [index('uploads_owner_id_idx').on(t.ownerId)],
 );
 
+/** 消息回应：同一个人对同一条消息的同一个表情只有一行 */
+export const messageReactions = pgTable(
+  'message_reactions',
+  {
+    messageId: bigint({ mode: 'number' })
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    userId: integer()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    emoji: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+    index('message_reactions_message_id_idx').on(t.messageId),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type FriendRequest = typeof friendRequests.$inferSelect;

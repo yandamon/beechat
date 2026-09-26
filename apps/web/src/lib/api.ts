@@ -11,6 +11,7 @@ import type {
   MessagePage,
   MessageView,
   PresignUploadInput,
+  ReactionSummary,
   UpdateMembershipInput,
   PresignedUpload,
   RegisterInput,
@@ -147,6 +148,11 @@ export const chatApi = {
       method: 'PATCH',
       body,
     }),
+  toggleReaction: (id: number, messageId: number, emoji: string) =>
+    api<{ reactions: ReactionSummary[] }>(
+      `/api/conversations/${id}/messages/${messageId}/reactions`,
+      { method: 'POST', body: { emoji } },
+    ),
   recall: (id: number, messageId: number) =>
     api<{ message: MessageView }>(`/api/conversations/${id}/messages/${messageId}/recall`, {
       method: 'POST',

@@ -2,7 +2,13 @@ import { LIMITS } from '@beechat/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { chatApi, friendsApi } from '@/lib/api';
-import { queryKeys, removeConversation, replaceMessage, upsertConversation } from './cache';
+import {
+  applyReactions,
+  queryKeys,
+  removeConversation,
+  replaceMessage,
+  upsertConversation,
+} from './cache';
 
 export function useConversations() {
   return useQuery({
@@ -158,5 +164,16 @@ export function useUpdateMembership(conversationId: number) {
     mutationFn: async (input: { pinned?: boolean; muted?: boolean }) =>
       (await chatApi.updateMembership(conversationId, input)).conversation,
     onSuccess: (conversation) => upsertConversation(queryClient, conversation),
+  });
+}
+
+/** 点一下加回应，再点取消；服务端同时会广播，这里先本地更新 */
+export function useToggleReaction(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: number; emoji: string }) =>
+      (await chatApi.toggleReaction(conversationId, messageId, emoji)).reactions,
+    onSuccess: (reactions, { messageId }) =>
+      applyReactions(queryClient, conversationId, messageId, reactions),
   });
 }

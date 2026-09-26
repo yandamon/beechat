@@ -2,6 +2,7 @@ import type {
   ConversationView,
   MessageView,
   PresenceEvent,
+  ReactionSummary,
   ReadEvent,
   TypingEvent,
 } from '@beechat/shared';
@@ -14,6 +15,7 @@ import {
   appendMessage,
   applyMessageToConversations,
   applyPeerRead,
+  applyReactions,
   markConversationRead,
   queryKeys,
   removeConversation,
@@ -64,6 +66,11 @@ export function useRealtimeSync(meId: number) {
       );
     };
     const onMessageUpdated = (message: MessageView) => replaceMessage(queryClient, message);
+    const onReactions = (event: {
+      conversationId: number;
+      messageId: number;
+      reactions: ReactionSummary[];
+    }) => applyReactions(queryClient, event.conversationId, event.messageId, event.reactions);
     const onTyping = (event: TypingEvent) => {
       if (event.userId !== meId) useTypingStore.getState().apply(event);
     };
@@ -106,6 +113,7 @@ export function useRealtimeSync(meId: number) {
 
     socket.on('message:new', onMessage);
     socket.on('message:updated', onMessageUpdated);
+    socket.on('message:reactions', onReactions);
     socket.on('typing', onTyping);
     socket.on('presence', onPresence);
     socket.on('conversation:updated', onConversationUpdated);
@@ -119,6 +127,7 @@ export function useRealtimeSync(meId: number) {
     return () => {
       socket.off('message:new', onMessage);
       socket.off('message:updated', onMessageUpdated);
+      socket.off('message:reactions', onReactions);
       socket.off('typing', onTyping);
       socket.off('presence', onPresence);
       socket.off('conversation:updated', onConversationUpdated);

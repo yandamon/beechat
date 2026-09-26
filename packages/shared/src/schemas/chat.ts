@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LIMITS } from '../constants';
+import { ALLOWED_REACTIONS, LIMITS } from '../constants';
 
 const positiveId = z.number().int().positive();
 const coercedId = z.coerce.number().int().positive();
@@ -32,6 +32,11 @@ export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export const typingSchema = z.object({ conversationId: positiveId });
 
 export const readSchema = z.object({ conversationId: positiveId, messageId: positiveId });
+
+export const toggleReactionSchema = z.object({
+  emoji: z.enum(ALLOWED_REACTIONS, { error: '不支持这个表情' }),
+});
+export type ToggleReactionInput = z.infer<typeof toggleReactionSchema>;
 
 export const conversationIdParamSchema = z.object({ id: coercedId });
 export const messageParamsSchema = z.object({ id: coercedId, messageId: coercedId });

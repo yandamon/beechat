@@ -1,4 +1,4 @@
-import type { ConversationView, MessageView } from './types/chat';
+import type { ConversationView, MessageView, ReactionSummary } from './types/chat';
 import type { FriendRequestView, FriendView } from './types/friends';
 
 /** 在线状态变化，只推给该用户的好友 */
@@ -56,6 +56,12 @@ export interface ServerToClientEvents {
   'message:new': (message: MessageView) => void;
   /** 消息被撤回等变更，整条消息视图重新下发 */
   'message:updated': (message: MessageView) => void;
+  /** 某条消息的回应汇总变了 */
+  'message:reactions': (event: {
+    conversationId: number;
+    messageId: number;
+    reactions: ReactionSummary[];
+  }) => void;
   typing: (event: TypingEvent) => void;
   presence: (event: PresenceEvent) => void;
   'conversation:updated': (conversation: ConversationView) => void;

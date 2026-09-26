@@ -102,7 +102,8 @@ export async function requireCompletedUpload(
   kind: Upload['kind'],
 ): Promise<Upload> {
   const upload = await findOwnedUpload(db, key, ownerId);
-  if (!upload || upload.kind !== kind) throw new AppError(404, '上传记录不存在', 'UPLOAD_NOT_FOUND');
+  if (!upload || upload.kind !== kind)
+    throw new AppError(404, '上传记录不存在', 'UPLOAD_NOT_FOUND');
   if (!upload.completedAt) throw new AppError(409, '文件还没有上传完成', 'UPLOAD_MISSING');
   return upload;
 }

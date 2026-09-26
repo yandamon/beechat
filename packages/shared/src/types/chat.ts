@@ -21,6 +21,14 @@ export interface ReplyPreview {
   deleted: boolean;
 }
 
+/** 某条消息上某个表情的汇总 */
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  /** 点了这个表情的人，按先后顺序 */
+  userIds: number[];
+}
+
 export interface MessageView {
   id: number;
   conversationId: number;
@@ -31,6 +39,7 @@ export interface MessageView {
   attachment: AttachmentView | null;
   /** 引用的消息；没有引用为 null */
   replyTo: ReplyPreview | null;
+  reactions: ReactionSummary[];
   /** 客户端生成的幂等键 */
   clientId: string;
   createdAt: string;
