@@ -6,7 +6,7 @@
 
 ## 当前进度
 
-- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、好友搜索与申请、拉黑与黑名单、举报、一对一私聊、群聊（建群、改名、群头像、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、消息回应、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知与离线推送、断线提示、深色模式、手机优先的界面（底部标签栏、长按消息、底部弹层）、PWA 可安装、Railway 部署、Playwright 端到端测试。
+- 已完成：账号注册登录、演示账号一键登录（数据每天重置，助手会自动回复）、个人资料（显示名、头像、退出所有设备、注销账号）、一次性邀请码与后台的邀请码管理、好友搜索与申请、拉黑与黑名单、举报、一对一私聊、群聊（建群、改名、群头像、邀请、移出、退群与群主转让）、文本与图片消息、引用回复、消息回应、表情选择器、消息实时收发与幂等重试、两分钟内撤回、私聊已读回执、会话置顶与免打扰、历史分页、未读数与多端已读同步、在线状态、正在输入、桌面通知与离线推送、断线提示、深色模式、手机优先的界面（底部标签栏、长按消息、底部弹层）、PWA 可安装、Railway 部署、Playwright 端到端测试。
 - 待办：线上图片存储切换到 Cloudflare R2（需要填写密钥）。
 - 计划：见 [docs/DESIGN.md](docs/DESIGN.md) 第 2 与 11 节。
 
@@ -47,23 +47,41 @@ cp apps/server/.env.example apps/server/.env
 pnpm dev
 ```
 
-`.env` 里的 `INVITE_CODE` 是注册时必须填写的邀请码，本地默认 `beechat-dev`；`DEMO_ENABLED` 控制登录页的“试用演示账号”入口，默认开启。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。离线推送是可选的：同时填写 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT` 才会启用（生成密钥：`pnpm --filter @beechat/server exec web-push generate-vapid-keys`），没填时"开启桌面通知"只在页面开着时提醒。
+`DEMO_ENABLED` 控制登录页的“试用演示账号”入口，默认开启。服务启动时会自动应用 `apps/server/drizzle` 里尚未执行的迁移。测试使用 `apps/server/.env.test`，内容与 `.env` 相同但指向 `beechat_test`。离线推送是可选的：同时填写 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT` 才会启用（生成密钥：`pnpm --filter @beechat/server exec web-push generate-vapid-keys`），没填时"开启桌面通知"只在页面开着时提醒。
+
+### 邀请码与管理员
+
+注册需要邀请码，每个邀请码只能注册一个账号。邀请码由管理员在应用里生成（桌面在顶栏的“邀请码”，手机在“我”里的“邀请码管理”），可以写备注、设有效期、作废，也可以直接复制邀请链接发给对方。
+
+全新的数据库里还没有账号，先用命令行生成第一个邀请码，注册后再把自己设成管理员：
+
+```bash
+pnpm --filter @beechat/server invite:create
+```
+
+```bash
+pnpm --filter @beechat/server admin:grant <用户名>
+```
+
+也可以在 `.env` 里写 `ADMIN_USERNAMES=<用户名>`（逗号分隔多个）：服务启动时会把这些已注册的账号升为管理员，还没注册的在注册时生效。它只升不降，撤销用 `admin:revoke`。
 
 `pnpm dev` 会同时启动前端（http://localhost:5173）和后端（http://localhost:3000）。前端开发服务器把 `/api` 与 `/socket.io` 代理到后端，因此浏览器始终同源访问。
 
 常用命令：
 
-| 命令                                        | 作用                                   |
-| ------------------------------------------- | -------------------------------------- |
-| `pnpm dev`                                  | 同时启动前后端开发服务器               |
-| `pnpm typecheck`                            | 全部包的 TypeScript 检查               |
-| `pnpm lint`                                 | ESLint                                 |
-| `pnpm format`                               | Prettier 格式化                        |
-| `pnpm test`                                 | Vitest                                 |
-| `pnpm build`                                | 构建前端产物和后端产物                 |
-| `pnpm start`                                | 以生产模式启动后端，并托管已构建的前端 |
-| `pnpm --filter @beechat/server db:generate` | 根据 schema 变更生成迁移文件           |
-| `pnpm --filter @beechat/server db:studio`   | 打开 Drizzle Studio 查看数据           |
+| 命令                                                        | 作用                                   |
+| ----------------------------------------------------------- | -------------------------------------- |
+| `pnpm dev`                                                  | 同时启动前后端开发服务器               |
+| `pnpm typecheck`                                            | 全部包的 TypeScript 检查               |
+| `pnpm lint`                                                 | ESLint                                 |
+| `pnpm format`                                               | Prettier 格式化                        |
+| `pnpm test`                                                 | Vitest                                 |
+| `pnpm build`                                                | 构建前端产物和后端产物                 |
+| `pnpm start`                                                | 以生产模式启动后端，并托管已构建的前端 |
+| `pnpm --filter @beechat/server db:generate`                 | 根据 schema 变更生成迁移文件           |
+| `pnpm --filter @beechat/server db:studio`                   | 打开 Drizzle Studio 查看数据           |
+| `pnpm --filter @beechat/server invite:create [数量] [备注]` | 生成邀请码并打印出来                   |
+| `pnpm --filter @beechat/server admin:grant <用户名>`        | 设为管理员；`admin:revoke` 撤销        |
 
 ## 图片存储
 
@@ -92,7 +110,7 @@ R2 的准备步骤：
 
 ## 端到端测试
 
-`pnpm e2e` 会用 `NODE_ENV=test` 拉起后端（读取 `apps/server/.env.test`）和前端开发服务器，先清空测试库，再用真实浏览器跑两组用例：桌面项目（`chat.spec.ts`）走注册、加好友、实时聊天、群聊、演示账号、拉黑和举报；手机项目（`mobile.spec.ts`，Pixel 7 的视口和触屏）走底部标签栏、全屏聊天、长按消息和底部弹层。首次运行前安装浏览器：
+`pnpm e2e` 会用 `NODE_ENV=test` 拉起后端（读取 `apps/server/.env.test`）和前端开发服务器，先清空测试库，再用真实浏览器跑两组用例：桌面项目（`chat.spec.ts`、`admin.spec.ts`）走注册、加好友、实时聊天、群聊、演示账号、拉黑、举报和后台的邀请码；手机项目（`mobile.spec.ts`，Pixel 7 的视口和触屏）走底部标签栏、全屏聊天、长按消息、底部弹层和手机上的邀请码管理。首次运行前安装浏览器：
 
 ```bash
 pnpm --filter @beechat/web exec playwright install chromium
@@ -114,8 +132,9 @@ NODE_ENV=production pnpm start
 
 1. 在 Neon 新建项目（区域 Singapore，Postgres 17），复制直连的连接串。
 2. Railway 里 New Project，选择 Deploy from GitHub repo，选中 `beechat`。
-3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`INVITE_CODE=<自定的邀请码>`；要开启离线推送再加上 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT`（见"本地开发"）。
+3. 在服务的 Variables 里添加 `NODE_ENV=production`、`DATABASE_URL=<Neon 连接串>`、`ADMIN_USERNAMES=<你的用户名>`；要开启离线推送再加上 `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT`（见"本地开发"）。
 4. Settings 里 Networking 一栏点 Generate Domain，得到公网地址。
+5. 线上的第一个邀请码用 Railway CLI 在本机生成（命令在本机跑，连的是线上数据库）：`railway run --service beechat pnpm --filter @beechat/server invite:create`。用它注册 `ADMIN_USERNAMES` 里写的那个用户名，之后的邀请码就在应用里生成。
 
 仓库连接时没有安装 Railway 的 GitHub App，推送不会自动触发部署；在 Railway 控制台的 Settings 里连接 GitHub 账号后即可自动部署，或者在仓库根目录用 CLI 手动部署：
 

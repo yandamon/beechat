@@ -2,10 +2,12 @@ import { ALLOWED_REACTIONS, type AttachmentView, LIMITS } from '@beechat/shared'
 import { Copy, Flag, Reply, SmilePlus, Undo2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
+import { showToast } from '@/lib/toast';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { LocalMessage } from '@/features/chat/cache';
 import { t } from '@/i18n/zh-CN';
+import { copyToClipboard } from '@/lib/clipboard';
 import { formatMessageTime } from '@/lib/format';
 import { useLongPress } from '@/lib/use-pointer';
 import { cn } from '@/lib/utils';
@@ -44,13 +46,8 @@ function canRecall(message: LocalMessage, mine: boolean) {
   );
 }
 
-function copyText(text: string) {
-  try {
-    // 非 https 的页面上没有 clipboard，直接放弃
-    navigator.clipboard.writeText(text).catch(() => undefined);
-  } catch {
-    /* 复制失败不值得打扰用户 */
-  }
+async function copyText(text: string) {
+  showToast((await copyToClipboard(text)) ? t.common.copied : t.common.copyFailed);
 }
 
 /**
@@ -155,7 +152,7 @@ export function MessageList({
         key: 'copy',
         label: t.chat.copy,
         icon: Copy,
-        onSelect: () => copyText(content),
+        onSelect: () => void copyText(content),
       });
     }
     if (canRecall(target, mine)) {

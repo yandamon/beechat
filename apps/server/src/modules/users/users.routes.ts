@@ -1,7 +1,7 @@
 import { searchUsersQuerySchema, updateProfileSchema } from '@beechat/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
-import { toPublicUser } from '../../lib/views';
+import { toCurrentUser } from '../../lib/views';
 import { searchUsers, updateProfile } from './users.service';
 
 export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -19,7 +19,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     { preHandler: app.authenticate, schema: { body: updateProfileSchema } },
     async (request) => {
       const { user } = requireAuth(request);
-      return { user: toPublicUser(await updateProfile(app.ctx, user, request.body)) };
+      return { user: toCurrentUser(await updateProfile(app.ctx, user, request.body)) };
     },
   );
 };

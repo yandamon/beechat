@@ -18,7 +18,7 @@ import { useConnectionStore } from '@/stores/connection';
  * 登录后的主界面，先按手机写，再用 md: 扩成桌面的两栏。
  *
  * 手机：一次只显示一屏。“/” 是会话列表，“/friends”“/me” 是另外两个标签页，底部有标签栏；
- * 进入聊天（/c/:id）后全屏，标签栏收起，靠左上角的返回回到列表。
+ * 进入聊天（/c/:id）或后台页面（/admin/…）后全屏，标签栏收起，靠左上角的返回回到上一层。
  * 桌面：左边固定一栏会话列表，右边是当前页面，没有标签栏。
  */
 export function ChatLayout() {
@@ -53,6 +53,8 @@ export function ChatLayout() {
   }, [totalUnread]);
 
   const inConversation = useMatch('/c/:conversationId') !== null;
+  // 后台页面和聊天页一样，手机上是全屏的子页面，不显示底部标签栏
+  const inAdmin = useMatch('/admin/*') !== null;
   const atList = useMatch({ path: '/', end: true }) !== null;
 
   return (
@@ -122,7 +124,7 @@ export function ChatLayout() {
       >
         <Outlet />
       </section>
-      {inConversation ? null : (
+      {inConversation || inAdmin ? null : (
         <MobileTabBar unreadCount={totalUnread} requestCount={incomingCount} />
       )}
     </div>

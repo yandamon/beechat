@@ -1,6 +1,6 @@
 import { type Browser, type Page, expect } from '@playwright/test';
+import { mintInviteCode } from './db';
 
-export const INVITE_CODE = 'test-invite';
 export const PASSWORD = 'password123';
 
 /** 聊天窗口里的消息列表；侧栏预览用的是 ul，所以 ol 只有这一个 */
@@ -9,11 +9,13 @@ export const messages = (page: Page) => page.locator('main ol');
 /** 用户名带时间戳，重复跑也不会撞名 */
 export const unique = (prefix: string) => `${prefix}_${Date.now().toString(36)}`.slice(0, 20);
 
+/** 注册一个新用户。每个邀请码只能用一次，所以每次都先要一个新的。 */
 export async function register(page: Page, username: string) {
+  const inviteCode = await mintInviteCode();
   await page.goto('/register');
   await page.getByLabel('用户名').fill(username);
   await page.getByLabel('密码').fill(PASSWORD);
-  await page.getByLabel('邀请码').fill(INVITE_CODE);
+  await page.getByLabel('邀请码').fill(inviteCode);
   await page.getByRole('button', { name: '注册' }).click();
   await expect(page.getByText('还没有会话')).toBeVisible();
 }

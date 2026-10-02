@@ -20,6 +20,10 @@ export const LIMITS = {
   recallWindowMs: 2 * 60_000,
   /** 举报时的补充说明 */
   reportDetail: { max: 500 },
+  /** 管理员一次最多生成多少个邀请码 */
+  inviteBatch: { max: 100 },
+  inviteNote: { max: 100 },
+  inviteExpiryDays: { max: 365 },
 } as const;
 
 /** 消息回应可用的表情，固定一小组，避免存任意字符串 */

@@ -13,7 +13,19 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ error: '缺少 DATABASE_URL，请参考 .env.example' }),
-  INVITE_CODE: z.string().min(1, '缺少 INVITE_CODE，请参考 .env.example'),
+  /**
+   * 这些用户名的账号是管理员，逗号分隔。启动时把已注册的升为管理员，还没注册的在注册时生效。
+   * 只升不降：从这里删掉名字不会撤销权限，撤销用 `admin:revoke` 命令。
+   */
+  ADMIN_USERNAMES: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((name) => name.trim().toLowerCase())
+        .filter((name) => name.length > 0),
+    ),
   /** 图片存储：local 存本地磁盘（开发或临时用），r2 存 Cloudflare R2 */
   STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
   UPLOADS_DIR: z.string().default('./uploads'),

@@ -1,5 +1,6 @@
-import { ChevronRight, Monitor, Moon, Sun } from 'lucide-react';
+import { ChevronRight, Monitor, Moon, Sun, Ticket } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { ProfileDialog } from '@/components/profile-dialog';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -126,6 +127,24 @@ export function MePage() {
             ) : null}
           </div>
         </section>
+
+        {user.role === 'admin' ? (
+          <section>
+            <h3 className="mb-2 px-1 text-sm font-medium text-muted-foreground">
+              {t.admin.section}
+            </h3>
+            <Link
+              to="/admin/invites"
+              className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-border px-4 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-muted mouse:hover:bg-muted/60"
+            >
+              <span className="flex items-center gap-3 text-base">
+                <Ticket className="size-5" />
+                {t.admin.entry}
+              </span>
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+          </section>
+        ) : null}
 
         <Button
           variant="outline"

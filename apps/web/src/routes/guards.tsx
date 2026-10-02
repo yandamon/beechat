@@ -40,3 +40,10 @@ export function PublicOnly() {
     </div>
   );
 }
+
+/** 后台页面：不是管理员就送回首页。接口本身也会拒绝，这里只是不让人看到空壳页面。 */
+export function RequireAdmin() {
+  const me = useMe();
+  if (me.data?.role !== 'admin') return <Navigate to="/" replace />;
+  return <Outlet />;
+}

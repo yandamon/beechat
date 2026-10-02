@@ -1,4 +1,5 @@
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { makeAdmin } from './db';
 import { befriend, messages, twoUsers } from './helpers';
 
 /**
@@ -140,6 +141,47 @@ test('好友页：次要操作收进“更多”，拉黑要在弹层里确认',
     await expect(pageA.getByText('还没有好友')).toBeVisible();
     await expect(pageA.getByText('黑名单')).toBeVisible();
     await expectNoHorizontalOverflow(pageA);
+  } finally {
+    await close();
+  }
+});
+
+test('管理员在手机上管理邀请码：入口在“我”里，生成和操作都走底部弹层', async ({ browser }) => {
+  const { pageA, alice, close } = await twoUsers(browser);
+  try {
+    await makeAdmin(alice);
+    await pageA.reload();
+    await tabBar(pageA).getByRole('link', { name: '我' }).tap();
+    await pageA.getByRole('link', { name: '邀请码管理' }).tap();
+    await expect(pageA.getByRole('heading', { name: '邀请码', exact: true })).toBeVisible();
+    // 后台是全屏的子页面：标签栏收起，左上角返回
+    await expect(tabBar(pageA)).toBeHidden();
+    await expectNoHorizontalOverflow(pageA);
+
+    await pageA.getByRole('button', { name: '生成', exact: true }).tap();
+    const sheet = pageA.getByRole('dialog');
+    await sheet.getByRole('button', { name: '生成', exact: true }).tap();
+    await expect(sheet.getByText('已生成 1 个邀请码')).toBeVisible();
+    const code = (await sheet.locator('code').first().textContent()) ?? '';
+    expect(code).toMatch(/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/);
+    await pageA.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    const row = pageA.locator('li', { hasText: code });
+    await expect(row).toBeVisible();
+    await expectNoHorizontalOverflow(pageA);
+
+    // 一行里的操作收在“更多”里；作废要再确认一次
+    await row.getByRole('button', { name: '更多' }).tap();
+    await expect(
+      pageA.getByRole('dialog').getByRole('button', { name: '复制邀请链接' }),
+    ).toBeVisible();
+    await pageA.getByRole('dialog').getByRole('button', { name: '作废' }).tap();
+    await pageA.getByRole('dialog').getByRole('button', { name: '作废', exact: true }).tap();
+    await expect(pageA.getByText(code)).toHaveCount(0);
+
+    await pageA.getByRole('link', { name: '返回' }).tap();
+    await expect(pageA.getByText(`@${alice}`)).toBeVisible();
+    await expect(tabBar(pageA)).toBeVisible();
   } finally {
     await close();
   }

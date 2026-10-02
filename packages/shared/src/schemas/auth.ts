@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LIMITS } from '../constants';
+import { normalizeInviteCode } from '../invites';
 
 /** 用户名：3 到 20 位小写字母、数字、下划线；输入会先去空格并转小写。 */
 export const usernameSchema = z
@@ -18,7 +19,13 @@ export const passwordSchema = z
 export const registerSchema = z.object({
   username: usernameSchema,
   password: passwordSchema,
-  inviteCode: z.string().trim().min(1, '请输入邀请码'),
+  // 大小写、空格、连字符都不计较，统一成库里存的形式再比对
+  inviteCode: z
+    .string()
+    .trim()
+    .min(1, '请输入邀请码')
+    .max(64, '邀请码不正确')
+    .transform(normalizeInviteCode),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 

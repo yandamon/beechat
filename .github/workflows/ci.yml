@@ -24,7 +24,6 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://beechat:beechat_dev@localhost:5432/beechat_test
-      INVITE_CODE: test-invite
       STORAGE_DRIVER: local
       UPLOADS_DIR: ./uploads-test
       RATE_LIMIT: 'false'
@@ -63,7 +62,6 @@ jobs:
       CI: 'true'
       NODE_ENV: test
       DATABASE_URL: postgres://beechat:beechat_dev@localhost:5432/beechat_test
-      INVITE_CODE: test-invite
       STORAGE_DRIVER: local
       UPLOADS_DIR: ./uploads-test
       RATE_LIMIT: 'false'

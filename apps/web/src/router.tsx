@@ -1,9 +1,10 @@
 import { createBrowserRouter } from 'react-router';
+import { AdminInvitesPage } from './routes/admin-invites';
 import { ChatLayout } from './routes/chat-layout';
 import { ChatWindow } from './routes/chat-window';
 import { EmptyChat } from './routes/empty-chat';
 import { FriendsPage } from './routes/friends-page';
-import { PublicOnly, RequireAuth } from './routes/guards';
+import { PublicOnly, RequireAdmin, RequireAuth } from './routes/guards';
 import { LoginPage } from './routes/login';
 import { MePage } from './routes/me-page';
 import { RegisterPage } from './routes/register';
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
               { path: 'c/:conversationId', Component: ChatWindow },
               { path: 'friends', Component: FriendsPage },
               { path: 'me', Component: MePage },
+              {
+                Component: RequireAdmin,
+                children: [{ path: 'admin/invites', Component: AdminInvitesPage }],
+              },
             ],
           },
         ],

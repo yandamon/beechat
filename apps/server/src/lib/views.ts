@@ -1,4 +1,10 @@
-import type { MessageView, PublicUser, ReactionSummary, ReplyPreview } from '@beechat/shared';
+import type {
+  CurrentUser,
+  MessageView,
+  PublicUser,
+  ReactionSummary,
+  ReplyPreview,
+} from '@beechat/shared';
 import type { Message, User } from '../db/schema';
 import { publicUrlFor } from '../storage';
 
@@ -10,6 +16,11 @@ export function toPublicUser(user: User): PublicUser {
     avatarUrl: user.avatarKey ? publicUrlFor(user.avatarKey) : null,
     createdAt: user.createdAt.toISOString(),
   };
+}
+
+/** 只在“我自己”的接口里用：登录、注册、/me、改资料。别人看不到角色。 */
+export function toCurrentUser(user: User): CurrentUser {
+  return { ...toPublicUser(user), role: user.role };
 }
 
 const REPLY_SNIPPET_LENGTH = 80;

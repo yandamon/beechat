@@ -1,7 +1,9 @@
-import { Outlet } from 'react-router';
+import { Ticket } from 'lucide-react';
+import { Link, Outlet } from 'react-router';
 import { ProfileButton } from '@/components/profile-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Button } from '@/components/ui/button';
+import { Toaster } from '@/components/toast';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useLogout, useMe } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
 import { useAppHeight } from '@/lib/use-app-height';
@@ -35,6 +37,15 @@ export function RootLayout() {
           <div className="flex items-center gap-1">
             {me.data ? (
               <>
+                {me.data.role === 'admin' ? (
+                  <Link
+                    to="/admin/invites"
+                    className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                  >
+                    <Ticket />
+                    {t.admin.invites.title}
+                  </Link>
+                ) : null}
                 <ProfileButton user={me.data} />
                 <Button
                   variant="ghost"
@@ -53,6 +64,7 @@ export function RootLayout() {
       <main className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }

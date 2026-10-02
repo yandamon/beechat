@@ -31,6 +31,7 @@ export const conversationType = pgEnum('conversation_type', ['direct', 'group'])
 export const memberRole = pgEnum('member_role', ['owner', 'member']);
 export const messageType = pgEnum('message_type', ['text', 'image', 'system']);
 export const uploadKind = pgEnum('upload_kind', ['image', 'avatar']);
+export const userRole = pgEnum('user_role', ['user', 'admin']);
 export const reportReason = pgEnum('report_reason', [
   'harassment',
   'spam',
@@ -48,6 +49,8 @@ export const users = pgTable(
     username: text().notNull(),
     displayName: text().notNull(),
     passwordHash: text().notNull(),
+    /** admin 能进后台（生成和作废邀请码）；用 ADMIN_USERNAMES 或命令行授予 */
+    role: userRole().notNull().default('user'),
     avatarKey: text(),
     lastSeenAt: timestamp({ withTimezone: true }),
     createdAt: createdAt(),
@@ -289,3 +292,29 @@ export const pushSubscriptions = pgTable(
     index('push_subscriptions_user_id_idx').on(t.userId),
   ],
 );
+/**
+ * 邀请码：一个码只能注册一个账号。状态不单独存，由三个时间推出来：
+ * usedAt 有值是已使用，revokedAt 有值是已作废，expiresAt 过了是已过期，都没有就是还能用。
+ */
+export const inviteCodes = pgTable(
+  'invite_codes',
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    /** 12 位大写字母数字，不带分隔符；展示时每 4 位加一个连字符 */
+    code: text().notNull(),
+    /** 管理员给自己看的备注，比如卖给了谁、哪一单 */
+    note: text(),
+    /** 生成它的管理员；命令行生成的为空 */
+    createdBy: integer().references(() => users.id, { onDelete: 'set null' }),
+    expiresAt: timestamp({ withTimezone: true }),
+    usedBy: integer().references(() => users.id, { onDelete: 'set null' }),
+    /** 注册时的用户名；账号注销后 usedBy 会被置空，靠它还能看出是谁用的 */
+    usedByUsername: text(),
+    usedAt: timestamp({ withTimezone: true }),
+    revokedAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('invite_codes_code_idx').on(t.code)],
+);
+
+export type InviteCode = typeof inviteCodes.$inferSelect;

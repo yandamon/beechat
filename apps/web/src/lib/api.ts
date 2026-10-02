@@ -3,7 +3,11 @@ import type {
   AuthResponse,
   BlockedUserView,
   ConversationView,
+  CreateInvitesInput,
   CreateReportInput,
+  InviteListResponse,
+  InviteStatus,
+  InviteView,
   PushSubscriptionInput,
   CreateGroupConversationInput,
   CreateFriendRequestInput,
@@ -139,6 +143,16 @@ export const pushApi = {
 export const reportsApi = {
   create: (body: CreateReportInput) =>
     api<{ report: { id: number } }>('/api/reports', { method: 'POST', body }),
+};
+
+/** 后台接口，只有管理员能调 */
+export const adminApi = {
+  listInvites: (status?: InviteStatus) =>
+    api<InviteListResponse>(`/api/admin/invites${status ? `?status=${status}` : ''}`),
+  createInvites: (body: CreateInvitesInput) =>
+    api<{ invites: InviteView[] }>('/api/admin/invites', { method: 'POST', body }),
+  revokeInvite: (id: number) =>
+    api<{ invite: InviteView }>(`/api/admin/invites/${id}/revoke`, { method: 'POST' }),
 };
 
 export const chatApi = {

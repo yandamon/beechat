@@ -1,5 +1,5 @@
 import { unsubscribeFromPush } from '@/features/chat/push';
-import type { LoginInput, PublicUser, RegisterInput, UpdateProfileInput } from '@beechat/shared';
+import type { CurrentUser, LoginInput, RegisterInput, UpdateProfileInput } from '@beechat/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, authApi, usersApi } from '@/lib/api';
 import { disconnectSocket } from '@/stores/connection';
@@ -7,7 +7,7 @@ import { disconnectSocket } from '@/stores/connection';
 export const ME_QUERY_KEY = ['me'] as const;
 
 /** 未登录不是错误，而是 null，这样守卫组件不用区分“出错”和“没登录” */
-async function fetchMe(): Promise<PublicUser | null> {
+async function fetchMe(): Promise<CurrentUser | null> {
   try {
     return (await authApi.me()).user;
   } catch (error) {

@@ -11,7 +11,10 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "admin:grant": "tsx src/cli.ts admin:grant",
+    "admin:revoke": "tsx src/cli.ts admin:revoke",
+    "invite:create": "tsx src/cli.ts invite:create"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1140.0",

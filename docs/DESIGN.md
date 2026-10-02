@@ -43,7 +43,7 @@
 - 显示名：不超过 30 字，可改、可重复。
 - 密码：至少 8 位，无复杂度要求，不过期；argon2id 哈希存储。
 - 头像：可上传，客户端缩放并居中裁成 256 × 256；未上传时显示首字母。
-- 注册需要邀请码（环境变量 `INVITE_CODE`），可随时更换。
+- 注册需要邀请码，每个邀请码只能注册一个账号，由管理员在后台生成（见 3.7）。
 - 登录态 30 天滚动有效；提供“退出所有设备”。
 
 ### 3.2 好友
@@ -80,6 +80,20 @@
 - 弹窗在手机上是从底部滑出的弹层（`DialogContent` 默认的 sheet 变体），`sm` 以上回到居中；看大图用 center 变体。确认类操作用应用内的 `useConfirm`，不用 `window.confirm`，按钮上写动作本身。
 - 触屏上回车换行、点按钮发送；有鼠标（也就有实体键盘）时回车发送、Shift + Enter 换行。
 - 整页不滚动，滚动只发生在列表和消息区里。外壳高度取 `--app-height`：`useAppHeight` 跟着 `visualViewport` 更新它，键盘弹出时输入框贴在键盘上方（安卓另有 viewport 的 `interactive-widget=resizes-content`）。刘海和底部横条用 `env(safe-area-inset-*)` 让开。
+
+### 3.7 收费与后台
+
+2026-10-03 开始做。需求是“账号收费、每个邀请码只能用一次、要有后台管理”；细节没有逐条确认，下面按当时给出的建议方案执行，回头可以改。标了“已实现”的已经做完，其余是之后的事。
+
+- 卖的是账号本身，买断制：付一次钱得到一个邀请码，注册后一直能用，没有到期和续费。一个邀请码就是一个名额。（已实现）
+- 收款先走线下（微信、支付宝、闲鱼等），收到钱后管理员在后台生成邀请码发给买家，不接支付接口。邀请码上的备注用来对账。
+- 邀请码是 12 位随机码，去掉了易混的 0/O、1/I/L，展示成 `XXXX-XXXX-XXXX`；输入时不分大小写，也不计较空格和连字符。可以设有效期（默认不过期），没用过的可以作废。可以直接发邀请链接 `/register?code=…`，打开后邀请码已经填好。（已实现）
+- 只有管理员能生成邀请码，普通用户不能邀请别人。（已实现）
+- 管理员是 `users.role = 'admin'` 的账号，和普通用户用同一套登录。后台页面在同一个应用的 `/admin` 下（手机上从“我”里进），接口在 `/api/admin` 下。授予方式有两种：环境变量 `ADMIN_USERNAMES`（启动时和注册时生效，只升不降），或命令行 `admin:grant`、`admin:revoke`。（已实现）
+- 全新的数据库里没有账号也就没有管理员，第一批邀请码用命令行 `invite:create` 生成。（已实现）
+- 已有账号全部保留；演示账号照旧不用邀请码、一键登录；原来写在环境变量里的全局邀请码取消。（已实现）
+- 暂不绑定邮箱：邀请码由管理员手动发给买家，忘记密码目前没有自助找回。
+- 后台之后要加：用户管理（搜索、封禁、强制下线、重置密码）、举报处理、数据概览。
 
 ## 4. 技术选型
 
@@ -158,7 +172,7 @@ beechat/
 | `PORT`、`HOST`                                             | 监听端口与地址，Railway 自动注入 `PORT`                         | 现在           |
 | `LOG_LEVEL`                                                | pino 日志级别                                                   | 现在           |
 | `DATABASE_URL`                                             | Postgres 连接串；测试从 `.env.test` 读取                        | 现在           |
-| `INVITE_CODE`                                              | 注册邀请码，常数时间比较                                        | 现在           |
+| `ADMIN_USERNAMES`                                          | 管理员的用户名，逗号分隔；启动时和注册时生效，只升不降          | 现在           |
 | `DEMO_ENABLED`                                             | 是否开放演示账号一键登录，默认 true                             | 现在           |
 | `RATE_LIMIT`                                               | 限流开关，默认 true；端到端测试关掉                             | 现在           |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web 推送的密钥对与联系方式（mailto: 或 https:），三项都填才启用 | 现在           |
@@ -174,7 +188,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 
 | 表                     | 字段要点                                                                                                                                                                                                          |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                | `id`、`username`（唯一，大小写不敏感）、`display_name`、`password_hash`、`avatar_key`、`last_seen_at`                                                                                                             |
+| `users`                | `id`、`username`（唯一，大小写不敏感）、`display_name`、`password_hash`、`role`（user、admin）、`avatar_key`、`last_seen_at`                                                                                      |
 | `sessions`             | `id`（随机令牌的哈希）、`user_id`、`expires_at`、`user_agent`                                                                                                                                                     |
 | `friend_requests`      | `id`、`from_user_id`、`to_user_id`、`message`、`status`（pending、accepted、rejected）、`responded_at`                                                                                                            |
 | `friendships`          | `user_id`、`friend_id`、`status`（friend、blocked）；每对好友两行，方便按方向查询与拉黑                                                                                                                           |
@@ -184,6 +198,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 | `uploads`              | `key`、`owner_id`、`mime`、`size`；用于追踪和清理 R2 对象                                                                                                                                                         |
 | `reports`              | `reporter_id`、`target_user_id`、`message_id`（消息删除后置空）、`reason`、`detail`、`snapshot`（举报时的消息内容）；只供人工处理                                                                                 |
 | `push_subscriptions`   | `user_id`、`endpoint`（唯一）、`p256dh`、`auth`、`user_agent`；一个用户多台设备                                                                                                                                   |
+| `invite_codes`         | `code`（唯一）、`note`、`created_by`、`expires_at`、`used_by`、`used_by_username`（账号注销后还能看出是谁用的）、`used_at`、`revoked_at`；状态由这几个时间推出来，不单独存                                        |
 
 ## 7. 实时协议与消息投递
 
@@ -218,6 +233,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 | uploads       | `POST /api/uploads/presign`、`POST /api/uploads/complete`                                                                                                                                                                                                                                          |
 | reports       | `POST /api/reports`                                                                                                                                                                                                                                                                                |
 | push          | `GET /api/push/public-key`、`POST /api/push/subscriptions`、`DELETE /api/push/subscriptions`                                                                                                                                                                                                       |
+| admin         | `GET /api/admin/invites`、`POST /api/admin/invites`、`POST /api/admin/invites/:id/revoke`（都要管理员）                                                                                                                                                                                            |
 | health        | `GET /api/health`                                                                                                                                                                                                                                                                                  |
 
 所有入参用 `packages/shared` 里的 zod schema 校验；错误统一返回 `{ message }`。
@@ -227,6 +243,8 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 - HTTPS 与 WSS 由托管平台提供。
 - 密码 argon2id；会话令牌为 256 位随机值，数据库只存其 sha256；Cookie `beechat_session` 为 `httpOnly`、`Secure`（生产）、`SameSite=Lax`，30 天滚动续期且每天最多写库一次。令牌本身不可伪造，因此不再需要 Cookie 签名密钥。
 - 登录时用户不存在也执行一次哈希校验，避免通过响应时间探测用户名。
+- 邀请码是 12 位随机码（31 个字符的字母表，约 59 位熵），注册接口每 IP 每小时只能试 3 次，无法穷举。占用邀请码和创建用户在同一个事务里，靠一条带条件的更新保证一个码只成功一次；用户名重复导致注册失败时邀请码不会被消耗。
+- 后台接口在 `onRequest` 阶段检查管理员角色，早于参数校验；角色每次请求都从数据库读，撤销后立即生效。
 - 限流：登录每 IP 每分钟 5 次；注册每 IP 每小时 3 次；发消息每用户每 10 秒 20 条；上传每用户每分钟 10 次。
 - 上传只允许 jpeg、png、webp、gif，服务端校验类型与大小；预签名 URL 短期有效。
 - 服务端不信任客户端提供的发送者、时间戳和会话成员关系，一律以数据库为准。
@@ -258,7 +276,7 @@ PostgreSQL，Drizzle 管理迁移，服务启动时自动应用。所有表带 `
 
 本地环境：Node 24、pnpm 12、git、VS Code（ESLint、Prettier、Tailwind CSS IntelliSense 扩展）、PostgreSQL 17（`winget install PostgreSQL.PostgreSQL.17`）。
 
-部署方式：Railway 通过 GitHub 集成自动部署 `main`，配置见仓库根目录 `railway.json`；数据库用 Neon 的直连连接串（非 pgbouncer 池化地址），迁移在服务启动时执行；环境变量 `NODE_ENV`、`DATABASE_URL`、`INVITE_CODE` 在 Railway 控制台设置，`PORT` 由平台注入。
+部署方式：Railway 通过 GitHub 集成自动部署 `main`，配置见仓库根目录 `railway.json`；数据库用 Neon 的直连连接串（非 pgbouncer 池化地址），迁移在服务启动时执行；环境变量 `NODE_ENV`、`DATABASE_URL`、`ADMIN_USERNAMES` 在 Railway 控制台设置，`PORT` 由平台注入。
 
 已部署（2026-09-25）：Railway 项目 `beechat`、服务 `beechat`，仅新加坡区域，试用套餐只允许单区域；Neon 项目 `mute-scene-40761436`，新加坡，Postgres 17；线上地址 https://beechat-production-a1d7.up.railway.app 。Railway 提示 `railway.json` 这种 Config as Code 将于 2026-12-01 停用，届时迁移到 `.railway/railway.ts`。
 

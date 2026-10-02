@@ -1,4 +1,5 @@
 export * from './constants';
+export * from './invites';
 export * from './socket-events';
 export * from './schemas/auth';
 export * from './schemas/chat';
@@ -6,7 +7,9 @@ export * from './schemas/friends';
 export * from './schemas/uploads';
 export * from './schemas/reports';
 export * from './schemas/push';
+export * from './schemas/invites';
 export * from './types/user';
 export * from './types/chat';
 export * from './types/friends';
 export * from './types/uploads';
+export * from './types/invites';

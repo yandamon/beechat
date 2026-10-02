@@ -1,6 +1,6 @@
-import { registerSchema } from '@beechat/shared';
+import { formatInviteCode, normalizeInviteCode, registerSchema } from '@beechat/shared';
 import { type FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +16,13 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const register = useRegister();
   const isMouse = useIsMouse();
-  const [form, setForm] = useState<Record<Field, string>>({
+  const [searchParams] = useSearchParams();
+  // 从邀请链接（/register?code=…）进来时邀请码已经填好
+  const [form, setForm] = useState<Record<Field, string>>(() => ({
     username: '',
     password: '',
-    inviteCode: '',
-  });
+    inviteCode: formatInviteCode(normalizeInviteCode(searchParams.get('code') ?? '')),
+  }));
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
 
   const update = (field: Field) => (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -85,11 +87,16 @@ export function RegisterPage() {
               onChange={update('password')}
             />
           </FormField>
-          <FormField id="inviteCode" label={t.auth.inviteCode} error={fieldErrors.inviteCode}>
+          <FormField
+            id="inviteCode"
+            label={t.auth.inviteCode}
+            hint={t.auth.inviteCodeHint}
+            error={fieldErrors.inviteCode}
+          >
             <Input
               id="inviteCode"
               autoComplete="off"
-              autoCapitalize="none"
+              autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
               enterKeyHint="go"

@@ -5,29 +5,32 @@ import type { Db } from '../../db/client';
 import { type User, users } from '../../db/schema';
 import { isUniqueViolation } from '../../lib/db-errors';
 import { AppError } from '../../lib/errors';
-import { safeEqual } from '../../lib/tokens';
-import { toPublicUser } from '../../lib/views';
+import { assertInviteUsable, attachInviteUser, claimInvite } from '../invites/invites.service';
 
-export { toPublicUser };
-
-export function assertInviteCode(code: string) {
-  if (!safeEqual(code, config.INVITE_CODE)) {
-    throw new AppError(403, '邀请码不正确', 'INVALID_INVITE_CODE');
-  }
-}
-
+/**
+ * 注册。每个邀请码只能注册一个账号：
+ * 占用邀请码和创建用户在同一个事务里，要么都成功要么都不发生，
+ * 所以用户名重复时邀请码不会被白白用掉，两个人抢同一个码也只有一个能成功。
+ */
 export async function registerUser(
   db: Db,
-  input: { username: string; password: string },
+  input: { username: string; password: string; inviteCode: string },
 ): Promise<User> {
+  await assertInviteUsable(db, input.inviteCode);
   const passwordHash = await hash(input.password);
+  // ADMIN_USERNAMES 里列出的用户名一注册就是管理员，不用等下次重启
+  const role = config.ADMIN_USERNAMES.includes(input.username) ? 'admin' : 'user';
   try {
-    const [user] = await db
-      .insert(users)
-      .values({ username: input.username, displayName: input.username, passwordHash })
-      .returning();
-    if (!user) throw new Error('insert returned no row');
-    return user;
+    return await db.transaction(async (tx) => {
+      const inviteId = await claimInvite(tx, input.inviteCode, input.username);
+      const [user] = await tx
+        .insert(users)
+        .values({ username: input.username, displayName: input.username, passwordHash, role })
+        .returning();
+      if (!user) throw new Error('insert returned no row');
+      await attachInviteUser(tx, inviteId, user.id);
+      return user;
+    });
   } catch (error) {
     // 依赖唯一索引而不是先查后插，两个并发注册也不会都成功
     if (isUniqueViolation(error)) throw new AppError(409, '用户名已被使用', 'USERNAME_TAKEN');

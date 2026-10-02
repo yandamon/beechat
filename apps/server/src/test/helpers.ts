@@ -1,35 +1,58 @@
 import type { AddressInfo } from 'node:net';
 import type {
   ClientToServerEvents,
+  CurrentUser,
   FriendView,
-  PublicUser,
   SendMessageAck,
   SendMessagePayload,
   ServerToClientEvents,
 } from '@beechat/shared';
 import { type Socket, io as connect } from 'socket.io-client';
+import { eq } from 'drizzle-orm';
 import { expect } from 'vitest';
+import { inviteCodes, users } from '../db/schema';
 import { SESSION_COOKIE } from '../modules/auth/session.service';
+import { generateInviteCode } from '../modules/invites/invites.service';
 import type { TestApp } from './create-test-app';
 
 export type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface TestUser {
-  user: PublicUser;
+  user: CurrentUser;
   token: string;
   cookies: Record<string, string>;
 }
 
-export async function registerUser(ctx: TestApp, username: string): Promise<TestUser> {
+/** 直接往库里放一个邀请码，返回不带分隔符的码；可以顺手指定备注、过期或作废时间 */
+export async function createInviteCode(
+  ctx: TestApp,
+  values: Partial<typeof inviteCodes.$inferInsert> = {},
+): Promise<string> {
+  const code = generateInviteCode();
+  await ctx.db.insert(inviteCodes).values({ ...values, code });
+  return code;
+}
+
+/** 注册一个用户。每次注册都会先生成一个新的邀请码；admin 为 true 时注册完升为管理员。 */
+export async function registerUser(
+  ctx: TestApp,
+  username: string,
+  options: { admin?: boolean } = {},
+): Promise<TestUser> {
   const response = await ctx.app.inject({
     method: 'POST',
     url: '/api/auth/register',
-    payload: { username, password: 'password123', inviteCode: 'test-invite' },
+    payload: { username, password: 'password123', inviteCode: await createInviteCode(ctx) },
   });
   expect(response.statusCode).toBe(201);
   const token = response.cookies.find((cookie) => cookie.name === SESSION_COOKIE)?.value;
   if (!token) throw new Error('register did not set a session cookie');
-  return { user: response.json().user, token, cookies: { [SESSION_COOKIE]: token } };
+  const user: CurrentUser = response.json().user;
+  if (options.admin) {
+    await ctx.db.update(users).set({ role: 'admin' }).where(eq(users.id, user.id));
+    user.role = 'admin';
+  }
+  return { user, token, cookies: { [SESSION_COOKIE]: token } };
 }
 
 export async function listen(ctx: TestApp): Promise<string> {

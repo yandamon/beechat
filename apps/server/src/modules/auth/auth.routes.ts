@@ -3,7 +3,8 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { requireAuth } from '../../plugins/auth';
 import { loginDemo } from '../demo/demo.service';
 import { deleteAccount } from './account.service';
-import { assertInviteCode, authenticateUser, registerUser, toPublicUser } from './auth.service';
+import { toCurrentUser } from '../../lib/views';
+import { authenticateUser, registerUser } from './auth.service';
 import { clearSessionCookie, deleteSession, deleteUserSessions } from './session.service';
 
 export const authRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -14,10 +15,9 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { body: registerSchema },
     },
     async (request, reply) => {
-      assertInviteCode(request.body.inviteCode);
       const user = await registerUser(app.db, request.body);
       await app.startSession(reply, user.id, request.headers['user-agent']);
-      return reply.code(201).send({ user: toPublicUser(user) });
+      return reply.code(201).send({ user: toCurrentUser(user) });
     },
   );
 
@@ -30,7 +30,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const user = await authenticateUser(app.db, request.body.username, request.body.password);
       await app.startSession(reply, user.id, request.headers['user-agent']);
-      return { user: toPublicUser(user) };
+      return { user: toCurrentUser(user) };
     },
   );
 
@@ -41,7 +41,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const user = await loginDemo(app.ctx);
       await app.startSession(reply, user.id, request.headers['user-agent']);
-      return { user: toPublicUser(user) };
+      return { user: toCurrentUser(user) };
     },
   );
 
@@ -72,6 +72,6 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
   );
 
   app.get('/me', { preHandler: app.authenticate }, async (request) => ({
-    user: toPublicUser(requireAuth(request).user),
+    user: toCurrentUser(requireAuth(request).user),
   }));
 };
