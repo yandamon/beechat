@@ -5,6 +5,7 @@ import { EmptyChat } from './routes/empty-chat';
 import { FriendsPage } from './routes/friends-page';
 import { PublicOnly, RequireAuth } from './routes/guards';
 import { LoginPage } from './routes/login';
+import { MePage } from './routes/me-page';
 import { RegisterPage } from './routes/register';
 import { RootLayout } from './routes/root-layout';
 
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
               { index: true, Component: EmptyChat },
               { path: 'c/:conversationId', Component: ChatWindow },
               { path: 'friends', Component: FriendsPage },
+              { path: 'me', Component: MePage },
             ],
           },
         ],

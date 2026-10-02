@@ -84,14 +84,17 @@ export function ReportDialog({ target, onClose }: ReportDialogProps) {
             <fieldset className="space-y-2">
               <legend className="mb-1 text-sm font-medium">{t.report.reasonLabel}</legend>
               {REPORT_REASONS.map((value) => (
-                <label key={value} className="flex items-center gap-2 text-sm">
+                <label
+                  key={value}
+                  className="flex min-h-10 items-center gap-3 text-base mouse:min-h-0 mouse:gap-2 mouse:text-sm"
+                >
                   <input
                     type="radio"
                     name="reason"
                     value={value}
                     checked={reason === value}
                     onChange={() => setReason(value)}
-                    className="accent-primary"
+                    className="size-5 accent-primary mouse:size-4"
                   />
                   {t.report.reasons[value]}
                 </label>
@@ -104,7 +107,7 @@ export function ReportDialog({ target, onClose }: ReportDialogProps) {
               rows={3}
               placeholder={t.report.detailPlaceholder}
               aria-label={t.report.detailPlaceholder}
-              className="w-full resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring mouse:text-sm"
             />
             {report.error ? (
               <p className="text-sm text-destructive">{report.error.message}</p>

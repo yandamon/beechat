@@ -1,5 +1,5 @@
 import { createGroupConversationSchema } from '@beechat/shared';
-import { UsersRound } from 'lucide-react';
+import { MessageCirclePlus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { FormField } from '@/components/form-field';
 import { UserAvatar } from '@/components/user-avatar';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateGroup, useFriends } from '@/features/chat/queries';
 import { t } from '@/i18n/zh-CN';
 import { fieldErrorsOf } from '@/lib/forms';
+import { useIsMouse } from '@/lib/use-pointer';
 import { cn } from '@/lib/utils';
 
 type Field = 'name' | 'memberIds';
@@ -29,6 +30,7 @@ export function CreateGroupDialog() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
   const friends = useFriends();
   const createGroup = useCreateGroup();
+  const isMouse = useIsMouse();
 
   const toggle = (userId: number, checked: boolean) =>
     setSelected((current) =>
@@ -76,7 +78,7 @@ export function CreateGroupDialog() {
         aria-label={t.group.create}
         title={t.group.create}
       >
-        <UsersRound />
+        <MessageCirclePlus />
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -90,7 +92,8 @@ export function CreateGroupDialog() {
               value={name}
               placeholder={t.group.namePlaceholder}
               onChange={(event) => setName(event.target.value)}
-              autoFocus
+              enterKeyHint="done"
+              autoFocus={isMouse}
             />
           </FormField>
           <div className="space-y-2">
@@ -105,14 +108,14 @@ export function CreateGroupDialog() {
             ) : !friends.data || friends.data.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t.group.noFriendsToPick}</p>
             ) : (
-              <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+              <ul className="max-h-64 divide-y divide-border overflow-y-auto overscroll-contain rounded-xl border border-border">
                 {friends.data.map((friend) => {
                   const checked = selected.includes(friend.id);
                   return (
                     <li key={friend.id}>
                       <label
                         className={cn(
-                          'flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-muted/60',
+                          'flex min-h-12 cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-muted/60 active:bg-muted/60',
                           checked && 'bg-muted/40',
                         )}
                       >

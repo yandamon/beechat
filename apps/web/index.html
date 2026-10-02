@@ -2,11 +2,24 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
+      viewport-fit=cover：内容铺到刘海和底部横条下面，再用 safe-area 内边距让开；
+      interactive-widget=resizes-content：安卓上键盘弹出时页面跟着变矮，输入框贴着键盘。
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#f5b400" />
+    <!-- 地址栏和状态栏的颜色跟页面背景一致；下面的脚本和主题切换会按深浅色更新它 -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="小蜜蜂" />
+    <meta name="format-detection" content="telephone=no" />
     <title>小蜜蜂</title>
     <script>
       // 首屏前根据已保存的主题加上 dark 类，避免闪一下浅色
@@ -16,6 +29,7 @@
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         if (theme === 'dark' || (theme === 'system' && prefersDark)) {
           document.documentElement.classList.add('dark');
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0a0a');
         }
       } catch {
         /* 无法访问 localStorage 时保持浅色 */

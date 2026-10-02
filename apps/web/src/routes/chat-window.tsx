@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, ChevronLeft, Flag, Pin, PinOff } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, Ellipsis, Flag, Info, Pin, PinOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Composer, type QuoteBar } from '@/components/chat/composer';
 import { GroupInfoDialog } from '@/components/chat/group-info-dialog';
 import { MessageList } from '@/components/chat/message-list';
@@ -44,11 +45,15 @@ export function ChatWindow() {
   const reaction = useToggleReaction(conversationId);
   const [replyTarget, setReplyTarget] = useState<LocalMessage | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [groupInfoOpen, setGroupInfoOpen] = useState(false);
 
-  // 切换会话时清掉正在回复的消息和举报弹窗
+  // 切换会话时清掉正在回复的消息和开着的弹层
   useEffect(() => {
     setReplyTarget(null);
     setReportTarget(null);
+    setMenuOpen(false);
+    setGroupInfoOpen(false);
   }, [conversationId]);
 
   // 告诉实时同步层当前开着哪个会话，它据此决定新消息算不算未读
@@ -96,7 +101,11 @@ export function ChatWindow() {
     : null;
 
   if (conversations.isPending) {
-    return <p className="p-6 text-sm text-muted-foreground">{t.common.loading}</p>;
+    return (
+      <p className="p-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] text-sm text-muted-foreground">
+        {t.common.loading}
+      </p>
+    );
   }
   if (!conversation) {
     return (
@@ -111,6 +120,7 @@ export function ChatWindow() {
 
   const isGroup = conversation.type === 'group';
   const peer = conversation.peer;
+  const title = conversationName(conversation);
   const stillFriends =
     isGroup || !friends.isSuccess || friends.data.some((friend) => friend.id === peer?.id);
 
@@ -127,68 +137,138 @@ export function ChatWindow() {
     statusLine = peer?.online ? t.chat.online : t.chat.offline;
   }
 
+  const togglePinned = () => membership.mutate({ pinned: !conversation.pinned });
+  const toggleMuted = () => membership.mutate({ muted: !conversation.muted });
+  const reportPeer = () => {
+    if (peer) setReportTarget({ userId: peer.id, name: peer.displayName });
+  };
+
+  // 手机上标题栏放不下一排图标，收进“更多”里；这里的图标表示点了之后会发生什么
+  const menuActions: SheetAction[] = [
+    {
+      key: 'pin',
+      label: conversation.pinned ? t.chat.unpin : t.chat.pin,
+      icon: conversation.pinned ? PinOff : Pin,
+      onSelect: togglePinned,
+    },
+    {
+      key: 'mute',
+      label: conversation.muted ? t.chat.unmute : t.chat.mute,
+      icon: conversation.muted ? Bell : BellOff,
+      onSelect: toggleMuted,
+    },
+  ];
+  if (isGroup) {
+    menuActions.push({
+      key: 'info',
+      label: t.group.info,
+      icon: Info,
+      onSelect: () => setGroupInfoOpen(true),
+    });
+  } else if (peer) {
+    menuActions.push({
+      key: 'report',
+      label: t.report.action,
+      icon: Flag,
+      destructive: true,
+      onSelect: reportPeer,
+    });
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:px-4">
-        <Link
-          to="/"
-          aria-label={t.common.back}
-          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'md:hidden')}
-        >
-          <ChevronLeft />
-        </Link>
-        <UserAvatar
-          name={conversationName(conversation)}
-          seed={peer?.id ?? conversation.id}
-          src={peer?.avatarUrl ?? conversation.avatarUrl}
-          className="size-8"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{conversationName(conversation)}</p>
-          <p
-            className={cn(
-              'truncate text-xs',
-              typingUsers.length > 0 ? 'text-primary' : 'text-muted-foreground',
-            )}
+      <header className="shrink-0 border-b border-border pt-safe md:pt-0">
+        <div className="flex h-14 items-center gap-1 px-1 md:h-12 md:gap-2 md:px-4">
+          <Link
+            to="/"
+            aria-label={t.common.back}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'icon-lg' }), 'md:hidden')}
           >
-            {statusLine}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => membership.mutate({ pinned: !conversation.pinned })}
-          disabled={membership.isPending}
-          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
-          aria-label={conversation.pinned ? t.chat.unpin : t.chat.pin}
-          title={conversation.pinned ? t.chat.unpin : t.chat.pin}
-          aria-pressed={conversation.pinned}
-        >
-          {conversation.pinned ? <PinOff /> : <Pin />}
-        </button>
-        <button
-          type="button"
-          onClick={() => membership.mutate({ muted: !conversation.muted })}
-          disabled={membership.isPending}
-          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
-          aria-label={conversation.muted ? t.chat.unmute : t.chat.mute}
-          title={conversation.muted ? t.chat.unmute : t.chat.mute}
-          aria-pressed={conversation.muted}
-        >
-          {conversation.muted ? <BellOff /> : <Bell />}
-        </button>
-        {!isGroup && peer ? (
+            <ChevronLeft className="size-6" />
+          </Link>
+          <UserAvatar
+            name={title}
+            seed={peer?.id ?? conversation.id}
+            src={peer?.avatarUrl ?? conversation.avatarUrl}
+            className="size-9 md:size-8"
+          />
+          <div className="ml-1 min-w-0 flex-1 md:ml-0">
+            <p className="truncate text-base font-semibold md:text-sm">{title}</p>
+            <p
+              className={cn(
+                'truncate text-xs',
+                typingUsers.length > 0 ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              {statusLine}
+            </p>
+          </div>
+          {/* 桌面：操作一字排开，图标表示当前状态 */}
+          <div className="hidden items-center gap-1 md:flex">
+            <button
+              type="button"
+              onClick={togglePinned}
+              disabled={membership.isPending}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+              aria-label={conversation.pinned ? t.chat.unpin : t.chat.pin}
+              title={conversation.pinned ? t.chat.unpin : t.chat.pin}
+              aria-pressed={conversation.pinned}
+            >
+              {conversation.pinned ? <PinOff /> : <Pin />}
+            </button>
+            <button
+              type="button"
+              onClick={toggleMuted}
+              disabled={membership.isPending}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+              aria-label={conversation.muted ? t.chat.unmute : t.chat.mute}
+              title={conversation.muted ? t.chat.unmute : t.chat.mute}
+              aria-pressed={conversation.muted}
+            >
+              {conversation.muted ? <BellOff /> : <Bell />}
+            </button>
+            {isGroup ? (
+              <button
+                type="button"
+                onClick={() => setGroupInfoOpen(true)}
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                aria-label={t.group.info}
+                title={t.group.info}
+              >
+                <Info />
+              </button>
+            ) : peer ? (
+              <button
+                type="button"
+                onClick={reportPeer}
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                aria-label={t.report.action}
+                title={t.report.action}
+              >
+                <Flag />
+              </button>
+            ) : null}
+          </div>
+          {/* 手机：一个“更多” */}
           <button
             type="button"
-            onClick={() => setReportTarget({ userId: peer.id, name: peer.displayName })}
-            className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
-            aria-label={t.report.action}
-            title={t.report.action}
+            onClick={() => setMenuOpen(true)}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'icon-lg' }), 'md:hidden')}
+            aria-label={t.common.more}
           >
-            <Flag />
+            <Ellipsis className="size-6" />
           </button>
-        ) : null}
-        {isGroup ? <GroupInfoDialog conversation={conversation} meId={meId} /> : null}
+        </div>
       </header>
+      <ActionSheet open={menuOpen} onOpenChange={setMenuOpen} title={title} actions={menuActions} />
+      {isGroup ? (
+        <GroupInfoDialog
+          conversation={conversation}
+          meId={meId}
+          open={groupInfoOpen}
+          onOpenChange={setGroupInfoOpen}
+        />
+      ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
 
       <MessageList

@@ -1,51 +1,5 @@
-import { type Browser, type Page, expect, test } from '@playwright/test';
-
-const INVITE_CODE = 'test-invite';
-const PASSWORD = 'password123';
-
-/** 聊天窗口里的消息列表；侧栏预览用的是 ul，所以 ol 只有这一个 */
-const messages = (page: Page) => page.locator('main ol');
-
-/** 用户名带时间戳，重复跑也不会撞名 */
-const unique = (prefix: string) => `${prefix}_${Date.now().toString(36)}`.slice(0, 20);
-
-async function register(page: Page, username: string) {
-  await page.goto('/register');
-  await page.getByLabel('用户名').fill(username);
-  await page.getByLabel('密码').fill(PASSWORD);
-  await page.getByLabel('邀请码').fill(INVITE_CODE);
-  await page.getByRole('button', { name: '注册' }).click();
-  await expect(page.getByText('还没有会话')).toBeVisible();
-}
-
-/** 两个独立的浏览器上下文，各自一套 Cookie，模拟两个人 */
-async function twoUsers(browser: Browser) {
-  const [contextA, contextB] = await Promise.all([browser.newContext(), browser.newContext()]);
-  const [pageA, pageB] = await Promise.all([contextA.newPage(), contextB.newPage()]);
-  const alice = unique('alice');
-  const bob = unique('bob');
-  await register(pageA, alice);
-  await register(pageB, bob);
-  return {
-    pageA,
-    pageB,
-    alice,
-    bob,
-    close: () => Promise.all([contextA.close(), contextB.close()]),
-  };
-}
-
-/** 通过接口直接把两人变成好友，省掉重复点界面的时间 */
-async function befriend(pageA: Page, pageB: Page) {
-  const me = await (await pageA.request.get('/api/auth/me')).json();
-  const created = await pageB.request.post('/api/friends/requests', {
-    data: { userId: me.user.id },
-  });
-  expect(created.ok()).toBeTruthy();
-  const { request } = await created.json();
-  const accepted = await pageA.request.post(`/api/friends/requests/${request.id}/accept`);
-  expect(accepted.ok()).toBeTruthy();
-}
+import { expect, test } from '@playwright/test';
+import { befriend, messages, twoUsers } from './helpers';
 
 test('两个人加好友，然后实时聊天', async ({ browser }) => {
   const { pageA, pageB, alice, bob, close } = await twoUsers(browser);
@@ -137,8 +91,9 @@ test('拉黑好友后对方无法再申请，解除拉黑后恢复', async ({ br
 
     // alice 在好友页拉黑 bob：好友列表清空，黑名单里出现 bob
     await pageA.goto('/friends');
-    pageA.once('dialog', (dialog) => void dialog.accept());
     await pageA.getByRole('button', { name: '拉黑', exact: true }).click();
+    // 确认弹层里说明后果，按钮上写的是动作本身
+    await pageA.getByRole('dialog').getByRole('button', { name: '拉黑', exact: true }).click();
     await expect(pageA.getByText('还没有好友')).toBeVisible();
     const blocked = pageA.locator('section', { hasText: '黑名单' });
     await expect(blocked.getByText(bob, { exact: true })).toBeVisible();

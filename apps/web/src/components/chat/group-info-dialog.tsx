@@ -1,8 +1,8 @@
 import type { ConversationView } from '@beechat/shared';
-import { Info } from 'lucide-react';
 import { type FormEvent, useRef, useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { UserAvatar } from '@/components/user-avatar';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,35 +26,30 @@ import { cn } from '@/lib/utils';
 interface GroupInfoDialogProps {
   conversation: ConversationView;
   meId: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function GroupInfoDialog({ conversation, meId }: GroupInfoDialogProps) {
-  const [open, setOpen] = useState(false);
+/** 群信息：成员、邀请、改名、换头像、退群。入口在聊天页标题栏（手机上在“更多”里）。 */
+export function GroupInfoDialog({ conversation, meId, open, onOpenChange }: GroupInfoDialogProps) {
   const isOwner = conversation.members.find((member) => member.id === meId)?.role === 'owner';
   const groupName = conversation.name ?? t.chat.groupFallbackName;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-        aria-label={t.group.info}
-        title={t.group.info}
-      >
-        <Info />
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{groupName}</DialogTitle>
           <DialogDescription>{t.chat.memberCount(conversation.members.length)}</DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] space-y-6 overflow-y-auto">
+        <div className="space-y-6">
           {isOwner ? <AvatarSection conversation={conversation} /> : null}
           {isOwner ? <RenameForm conversation={conversation} /> : null}
           <MembersSection conversation={conversation} meId={meId} isOwner={isOwner} />
           <InviteSection conversation={conversation} />
         </div>
         <DialogFooter>
-          <LeaveButton conversation={conversation} meId={meId} onLeft={() => setOpen(false)} />
+          <LeaveButton conversation={conversation} meId={meId} onLeft={() => onOpenChange(false)} />
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -147,6 +141,7 @@ function RenameForm({ conversation }: { conversation: ConversationView }) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           maxLength={30}
+          enterKeyHint="done"
         />
         <Button
           type="submit"
@@ -171,12 +166,13 @@ function MembersSection({
   isOwner: boolean;
 }) {
   const remove = useRemoveMember(conversation.id, meId);
+  const confirm = useConfirm();
   return (
     <section>
       <h3 className="mb-2 text-sm font-medium">{t.group.members}</h3>
       <ul className="divide-y divide-border rounded-xl border border-border">
         {conversation.members.map((member) => (
-          <li key={member.id} className="flex items-center gap-3 px-3 py-2">
+          <li key={member.id} className="flex min-h-12 items-center gap-3 px-3 py-1.5">
             <UserAvatar
               name={member.displayName}
               seed={member.id}
@@ -199,11 +195,15 @@ function MembersSection({
                 size="sm"
                 variant="ghost"
                 disabled={remove.isPending}
-                onClick={() => {
-                  if (window.confirm(t.group.confirmKick(member.displayName))) {
-                    remove.mutate(member.id);
-                  }
-                }}
+                onClick={() =>
+                  confirm.ask({
+                    title: t.group.kickTitle,
+                    description: t.group.confirmKick(member.displayName),
+                    confirmLabel: t.group.kick,
+                    destructive: true,
+                    onConfirm: () => remove.mutate(member.id),
+                  })
+                }
               >
                 {t.group.kick}
               </Button>
@@ -214,6 +214,7 @@ function MembersSection({
       {remove.error ? (
         <p className="mt-2 text-sm text-destructive">{remove.error.message}</p>
       ) : null}
+      {confirm.element}
     </section>
   );
 }
@@ -237,14 +238,14 @@ function InviteSection({ conversation }: { conversation: ConversationView }) {
         <p className="text-sm text-muted-foreground">{t.group.noOneToInvite}</p>
       ) : (
         <>
-          <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+          <ul className="max-h-48 divide-y divide-border overflow-y-auto overscroll-contain rounded-xl border border-border">
             {candidates.map((friend) => {
               const checked = selected.includes(friend.id);
               return (
                 <li key={friend.id}>
                   <label
                     className={cn(
-                      'flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-muted/60',
+                      'flex min-h-12 cursor-pointer items-center gap-3 px-3 py-1.5 active:bg-muted/60 mouse:hover:bg-muted/60',
                       checked && 'bg-muted/40',
                     )}
                   >
@@ -295,17 +296,25 @@ function LeaveButton({
   onLeft: () => void;
 }) {
   const remove = useRemoveMember(conversation.id, meId);
+  const confirm = useConfirm();
   return (
-    <Button
-      variant="destructive"
-      disabled={remove.isPending}
-      onClick={() => {
-        if (window.confirm(t.group.confirmLeave(conversation.name ?? t.chat.groupFallbackName))) {
-          remove.mutate(meId, { onSuccess: onLeft });
+    <>
+      <Button
+        variant="destructive"
+        disabled={remove.isPending}
+        onClick={() =>
+          confirm.ask({
+            title: t.group.leave,
+            description: t.group.confirmLeave(conversation.name ?? t.chat.groupFallbackName),
+            confirmLabel: t.group.leave,
+            destructive: true,
+            onConfirm: () => remove.mutate(meId, { onSuccess: onLeft }),
+          })
         }
-      }}
-    >
-      {t.group.leave}
-    </Button>
+      >
+        {t.group.leave}
+      </Button>
+      {confirm.element}
+    </>
   );
 }

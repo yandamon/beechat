@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useDemoLogin, useLogin } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
 import { fieldErrorsOf } from '@/lib/forms';
+import { useIsMouse } from '@/lib/use-pointer';
 
 type Field = 'username' | 'password';
 
@@ -16,6 +17,7 @@ export function LoginPage() {
   const location = useLocation();
   const login = useLogin();
   const demo = useDemoLogin();
+  const isMouse = useIsMouse();
   const [form, setForm] = useState<Record<Field, string>>({ username: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
   const from = (location.state as { from?: string } | null)?.from ?? '/';
@@ -51,7 +53,13 @@ export function LoginPage() {
             <Input
               id="username"
               autoComplete="username"
-              autoFocus
+              // 手机键盘默认会把首字母大写、自动纠错，用户名不需要
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="next"
+              // 手机上不自动聚焦，免得一进页面键盘就弹出来挡住一半
+              autoFocus={isMouse}
               value={form.username}
               onChange={update('username')}
             />
@@ -61,6 +69,7 @@ export function LoginPage() {
               id="password"
               type="password"
               autoComplete="current-password"
+              enterKeyHint="go"
               value={form.password}
               onChange={update('password')}
             />

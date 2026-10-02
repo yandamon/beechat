@@ -5,6 +5,7 @@ const isCI = Boolean(process.env.CI);
 /**
  * 端到端测试：同时拉起后端（NODE_ENV=test，读 .env.test 或 CI 环境变量）和前端开发服务器，
  * 用真实浏览器走注册、加好友、聊天、群聊、演示账号这几条关键路径。
+ * 桌面项目跑业务流程（chat.spec.ts），手机项目用 Pixel 7 的视口和触屏跑手机上才有的交互（mobile.spec.ts）。
  */
 export default defineConfig({
   testDir: './e2e',
@@ -21,7 +22,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', testMatch: 'chat.spec.ts', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', testMatch: 'mobile.spec.ts', use: { ...devices['Pixel 7'] } },
+  ],
   webServer: [
     {
       command: 'pnpm --filter @beechat/server dev',

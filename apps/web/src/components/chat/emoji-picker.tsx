@@ -56,7 +56,11 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
       >
         <Smile />
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-80 gap-2 p-2">
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-[min(20rem,calc(100vw-1rem))] gap-2 p-2"
+      >
         <div className="flex gap-1">
           {CATEGORIES.map((entry) => (
             <button
@@ -64,7 +68,7 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
               type="button"
               onClick={() => setCategory(entry.key)}
               className={cn(
-                'flex size-8 items-center justify-center rounded-md text-lg hover:bg-muted',
+                'flex size-10 items-center justify-center rounded-md text-xl hover:bg-muted active:bg-muted mouse:size-8 mouse:text-lg',
                 entry.key === category && 'bg-muted',
               )}
               aria-pressed={entry.key === category}
@@ -73,13 +77,13 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
             </button>
           ))}
         </div>
-        <div className="grid max-h-56 grid-cols-8 gap-0.5 overflow-y-auto">
+        <div className="grid max-h-56 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-0.5 overflow-y-auto overscroll-contain">
           {active?.emojis.split(' ').map((emoji) => (
             <button
               key={emoji}
               type="button"
               onClick={() => onPick(emoji)}
-              className="flex size-9 items-center justify-center rounded-md text-xl hover:bg-muted"
+              className="flex aspect-square items-center justify-center rounded-md text-2xl hover:bg-muted active:bg-muted mouse:text-xl"
             >
               {emoji}
             </button>

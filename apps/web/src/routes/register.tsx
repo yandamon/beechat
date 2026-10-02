@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { useRegister } from '@/features/auth/use-auth';
 import { t } from '@/i18n/zh-CN';
 import { fieldErrorsOf } from '@/lib/forms';
+import { useIsMouse } from '@/lib/use-pointer';
 
 type Field = 'username' | 'password' | 'inviteCode';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const register = useRegister();
+  const isMouse = useIsMouse();
   const [form, setForm] = useState<Record<Field, string>>({
     username: '',
     password: '',
@@ -57,7 +59,13 @@ export function RegisterPage() {
             <Input
               id="username"
               autoComplete="username"
-              autoFocus
+              // 手机键盘默认会把首字母大写、自动纠错，用户名不需要
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="next"
+              // 手机上不自动聚焦，免得一进页面键盘就弹出来挡住一半
+              autoFocus={isMouse}
               value={form.username}
               onChange={update('username')}
             />
@@ -72,6 +80,7 @@ export function RegisterPage() {
               id="password"
               type="password"
               autoComplete="new-password"
+              enterKeyHint="next"
               value={form.password}
               onChange={update('password')}
             />
@@ -80,6 +89,10 @@ export function RegisterPage() {
             <Input
               id="inviteCode"
               autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
               value={form.inviteCode}
               onChange={update('inviteCode')}
             />

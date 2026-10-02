@@ -32,8 +32,11 @@ export function PublicOnly() {
   if (me.isPending) return <CenteredMessage>{t.common.loading}</CenteredMessage>;
   if (me.data) return <Navigate to="/" replace />;
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      <Outlet />
+    // 外壳本身不滚动，登录注册页在这一层里滚；键盘弹出、屏幕矮的时候表单还能滑到
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="mx-auto w-full max-w-3xl px-4 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <Outlet />
+      </div>
     </div>
   );
 }

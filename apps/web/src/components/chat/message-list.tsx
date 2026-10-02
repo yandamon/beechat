@@ -1,11 +1,13 @@
 import { ALLOWED_REACTIONS, type AttachmentView, LIMITS } from '@beechat/shared';
-import { Flag, Reply, SmilePlus, Undo2 } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
+import { Copy, Flag, Reply, SmilePlus, Undo2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { LocalMessage } from '@/features/chat/cache';
 import { t } from '@/i18n/zh-CN';
 import { formatMessageTime } from '@/lib/format';
+import { useLongPress } from '@/lib/use-pointer';
 import { cn } from '@/lib/utils';
 
 interface MessageListProps {
@@ -29,9 +31,34 @@ interface MessageListProps {
   nameOf: (senderId: number | null) => string;
 }
 
+/** 已经发到服务器的消息才能回应、回复、撤回、举报 */
+function isActionable(message: LocalMessage) {
+  return !message.pending && !message.failed && message.id > 0;
+}
+
+function canRecall(message: LocalMessage, mine: boolean) {
+  return (
+    mine &&
+    isActionable(message) &&
+    Date.now() - new Date(message.createdAt).getTime() < LIMITS.recallWindowMs
+  );
+}
+
+function copyText(text: string) {
+  try {
+    // 非 https 的页面上没有 clipboard，直接放弃
+    navigator.clipboard.writeText(text).catch(() => undefined);
+  } catch {
+    /* 复制失败不值得打扰用户 */
+  }
+}
+
 /**
  * 消息列表：默认贴住底部，用户往上翻时不再自动滚动；
  * 滚到顶部附近加载更早的消息，并保持视口位置不跳。
+ *
+ * 消息的操作有两套入口：有鼠标的设备上悬停消息出现小图标；
+ * 触屏上长按消息，从底部弹出操作层（表情回应、回复、复制、撤回、举报）。
  */
 export function MessageList({
   messages,
@@ -53,6 +80,10 @@ export function MessageList({
   const stickToBottomRef = useRef(true);
   const prevFirstIdRef = useRef<number | undefined>(undefined);
   const prevHeightRef = useRef(0);
+  // 长按选中的消息；关闭弹层时先留着，等收起动画放完
+  const [actionTargetId, setActionTargetId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpenedAt, setSheetOpenedAt] = useState(0);
 
   useLayoutEffect(() => {
     const element = listRef.current;
@@ -76,6 +107,17 @@ export function MessageList({
     prevHeightRef.current = element.scrollHeight;
   }, [messages, meId]);
 
+  // 键盘弹出、输入框长高都会让列表变矮：原本贴着底部的话继续贴着，最新消息不被挡住
+  useEffect(() => {
+    const element = listRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const handleScroll = () => {
     const element = listRef.current;
     if (!element) return;
@@ -96,8 +138,51 @@ export function MessageList({
         message.id <= peerLastReadMessageId,
     )?.id;
 
+  const actionTarget = messages.find((message) => message.clientId === actionTargetId) ?? null;
+  const sheetActions: SheetAction[] = [];
+  if (actionTarget) {
+    const target = actionTarget;
+    const mine = target.senderId === meId;
+    sheetActions.push({
+      key: 'reply',
+      label: t.chat.reply,
+      icon: Reply,
+      onSelect: () => onReply(target),
+    });
+    if (target.type === 'text' && target.content) {
+      const content = target.content;
+      sheetActions.push({
+        key: 'copy',
+        label: t.chat.copy,
+        icon: Copy,
+        onSelect: () => copyText(content),
+      });
+    }
+    if (canRecall(target, mine)) {
+      sheetActions.push({
+        key: 'recall',
+        label: t.chat.recall,
+        icon: Undo2,
+        onSelect: () => onRecall(target),
+      });
+    }
+    if (!mine && target.senderId !== null) {
+      sheetActions.push({
+        key: 'report',
+        label: t.report.action,
+        icon: Flag,
+        destructive: true,
+        onSelect: () => onReport(target),
+      });
+    }
+  }
+
   return (
-    <div ref={listRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+    <div
+      ref={listRef}
+      onScroll={handleScroll}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:px-4"
+    >
       {isPending ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{t.common.loading}</p>
       ) : (
@@ -144,6 +229,11 @@ export function MessageList({
                   onReply={onReply}
                   onReact={onReact}
                   onReport={onReport}
+                  onLongPress={(target) => {
+                    setActionTargetId(target.clientId);
+                    setSheetOpenedAt(Date.now());
+                    setSheetOpen(true);
+                  }}
                   nameOf={nameOf}
                   meId={meId}
                 />
@@ -152,6 +242,40 @@ export function MessageList({
           );
         })}
       </ol>
+      <ActionSheet
+        open={sheetOpen && actionTarget !== null}
+        onOpenChange={setSheetOpen}
+        title={actionTarget?.type === 'image' ? t.chat.imageMessage : (actionTarget?.content ?? '')}
+        actions={sheetActions}
+        ignoreOutsidePressBefore={sheetOpenedAt + 400}
+      >
+        {actionTarget ? (
+          <div className="flex justify-between px-2 pb-1">
+            {ALLOWED_REACTIONS.map((emoji) => {
+              const reacted = actionTarget.reactions.some(
+                (reaction) => reaction.emoji === emoji && reaction.userIds.includes(meId),
+              );
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  aria-pressed={reacted}
+                  onClick={() => {
+                    setSheetOpen(false);
+                    onReact(actionTarget, emoji);
+                  }}
+                  className={cn(
+                    'flex size-11 items-center justify-center rounded-full text-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-90',
+                    reacted ? 'bg-primary/15 ring-1 ring-primary' : 'bg-muted',
+                  )}
+                >
+                  {emoji}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </ActionSheet>
     </div>
   );
 }
@@ -159,7 +283,7 @@ export function MessageList({
 function SystemMessage({ content }: { content: string }) {
   return (
     <p className="py-1 text-center text-xs text-muted-foreground">
-      <span className="rounded-full bg-muted px-3 py-1">{content}</span>
+      <span className="inline-block rounded-full bg-muted px-3 py-1">{content}</span>
     </p>
   );
 }
@@ -202,18 +326,20 @@ function ImageAttachment({
           width={style.width}
           height={style.height}
           loading="lazy"
-          className="block max-h-80 max-w-[280px] object-cover"
+          draggable={false}
+          className="block h-auto max-h-80 max-w-full object-cover [-webkit-touch-callout:none]"
         />
       </DialogTrigger>
       <DialogContent
+        variant="center"
         showCloseButton
-        className="max-w-[92vw] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
+        className="max-w-[92vw] bg-transparent p-0 shadow-none ring-0 sm:max-w-[92vw]"
       >
         <DialogTitle className="sr-only">{t.chat.imageAlt}</DialogTitle>
         <img
           src={attachment.url}
           alt={t.chat.imageAlt}
-          className="mx-auto max-h-[88vh] max-w-full rounded-lg object-contain"
+          className="mx-auto max-h-[88dvh] max-w-full rounded-lg object-contain"
         />
       </DialogContent>
     </Dialog>
@@ -227,6 +353,9 @@ function quotePreview(reply: NonNullable<LocalMessage['replyTo']>): string {
   return reply.content ?? '';
 }
 
+const HOVER_ACTION_CLASS =
+  'rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100';
+
 function Bubble({
   message,
   mine,
@@ -237,6 +366,7 @@ function Bubble({
   onReply,
   onReact,
   onReport,
+  onLongPress,
   nameOf,
   meId,
 }: {
@@ -249,112 +379,115 @@ function Bubble({
   onReply: (message: LocalMessage) => void;
   onReact: (message: LocalMessage, emoji: string) => void;
   onReport: (message: LocalMessage) => void;
+  onLongPress: (message: LocalMessage) => void;
   nameOf: (senderId: number | null) => string;
   meId: number;
 }) {
   const isImage = message.type === 'image' && message.attachment !== null;
-  const canRecall =
-    mine &&
-    !message.pending &&
-    !message.failed &&
-    message.id > 0 &&
-    Date.now() - new Date(message.createdAt).getTime() < LIMITS.recallWindowMs;
+  const actionable = isActionable(message);
+  const longPress = useLongPress(() => {
+    if (actionable) onLongPress(message);
+  });
 
   return (
     <div className={cn('group flex flex-col gap-1', mine ? 'items-end' : 'items-start')}>
       {name ? <span className="px-1 text-xs text-muted-foreground">{name}</span> : null}
-      <div className={cn('flex max-w-full items-end gap-1', mine && 'flex-row-reverse')}>
-        {isImage && message.attachment ? (
-          <ImageAttachment attachment={message.attachment} pending={message.pending} />
-        ) : (
-          <div
-            className={cn(
-              'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap',
-              mine
-                ? 'rounded-br-md bg-primary text-primary-foreground'
-                : 'rounded-bl-md bg-muted text-foreground',
-              message.pending && 'opacity-70',
-            )}
-          >
-            {message.replyTo ? (
-              <div
-                className={cn(
-                  'mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs',
-                  mine
-                    ? 'border-primary-foreground/60 bg-primary-foreground/15'
-                    : 'border-primary bg-background/60',
-                )}
-              >
-                <p className="font-medium">{nameOf(message.replyTo.senderId)}</p>
-                <p className="line-clamp-2 opacity-80">{quotePreview(message.replyTo)}</p>
-              </div>
-            ) : null}
-            {message.content}
-          </div>
-        )}
-        {!message.pending && !message.failed && message.id > 0 ? (
-          <Popover>
-            <PopoverTrigger
-              title={t.chat.react}
-              aria-label={t.chat.react}
-              className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100 data-open:opacity-100"
+      {/* 这一行占满整行宽度，气泡的最大宽度才是按消息区的宽度算，而不是按它自己 */}
+      <div className={cn('flex w-full items-end gap-1', mine && 'flex-row-reverse')}>
+        {/* 触屏上长按出操作层，所以不让系统选中文字（复制在操作层里）；有鼠标时照常可选 */}
+        <div
+          {...longPress}
+          className="max-w-[82%] min-w-0 select-none [-webkit-touch-callout:none] md:max-w-[75%] mouse:select-text"
+        >
+          {isImage && message.attachment ? (
+            <ImageAttachment attachment={message.attachment} pending={message.pending} />
+          ) : (
+            <div
+              className={cn(
+                'rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed break-words whitespace-pre-wrap mouse:text-sm mouse:leading-normal',
+                mine
+                  ? 'rounded-br-md bg-primary text-primary-foreground'
+                  : 'rounded-bl-md bg-muted text-foreground',
+                message.pending && 'opacity-70',
+              )}
             >
-              <SmilePlus className="size-3.5" />
-            </PopoverTrigger>
-            <PopoverContent
-              side="top"
-              align={mine ? 'end' : 'start'}
-              className="w-auto flex-row gap-0.5 p-1"
-            >
-              {ALLOWED_REACTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => onReact(message, emoji)}
-                  className="flex size-8 items-center justify-center rounded-md text-lg hover:bg-muted"
+              {message.replyTo ? (
+                <div
+                  className={cn(
+                    'mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs',
+                    mine
+                      ? 'border-primary-foreground/60 bg-primary-foreground/15'
+                      : 'border-primary bg-background/60',
+                  )}
                 >
-                  {emoji}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        ) : null}
-        {!message.pending && !message.failed && message.id > 0 ? (
-          <button
-            type="button"
-            onClick={() => onReply(message)}
-            title={t.chat.reply}
-            aria-label={t.chat.reply}
-            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
-          >
-            <Reply className="size-3.5" />
-          </button>
-        ) : null}
-        {!mine &&
-        message.senderId !== null &&
-        !message.pending &&
-        !message.failed &&
-        message.id > 0 ? (
-          <button
-            type="button"
-            onClick={() => onReport(message)}
-            title={t.report.action}
-            aria-label={t.report.action}
-            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
-          >
-            <Flag className="size-3.5" />
-          </button>
-        ) : null}
-        {canRecall ? (
-          <button
-            type="button"
-            onClick={() => onRecall(message)}
-            title={t.chat.recall}
-            aria-label={t.chat.recall}
-            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted focus-visible:opacity-100"
-          >
-            <Undo2 className="size-3.5" />
-          </button>
+                  <p className="font-medium">{nameOf(message.replyTo.senderId)}</p>
+                  <p className="line-clamp-2 opacity-80">{quotePreview(message.replyTo)}</p>
+                </div>
+              ) : null}
+              {message.content}
+            </div>
+          )}
+        </div>
+        {actionable ? (
+          // 悬停才出现的小图标只给有鼠标的设备；触屏上整块不渲染出来，免得点到看不见的按钮
+          <div className={cn('hidden items-center gap-1 mouse:flex', mine && 'flex-row-reverse')}>
+            <Popover>
+              <PopoverTrigger
+                title={t.chat.react}
+                aria-label={t.chat.react}
+                className={cn(HOVER_ACTION_CLASS, 'data-open:opacity-100')}
+              >
+                <SmilePlus className="size-3.5" />
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align={mine ? 'end' : 'start'}
+                className="w-auto flex-row gap-0.5 p-1"
+              >
+                {ALLOWED_REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => onReact(message, emoji)}
+                    className="flex size-8 items-center justify-center rounded-md text-lg hover:bg-muted"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+            <button
+              type="button"
+              onClick={() => onReply(message)}
+              title={t.chat.reply}
+              aria-label={t.chat.reply}
+              className={HOVER_ACTION_CLASS}
+            >
+              <Reply className="size-3.5" />
+            </button>
+            {!mine && message.senderId !== null ? (
+              <button
+                type="button"
+                onClick={() => onReport(message)}
+                title={t.report.action}
+                aria-label={t.report.action}
+                className={HOVER_ACTION_CLASS}
+              >
+                <Flag className="size-3.5" />
+              </button>
+            ) : null}
+            {canRecall(message, mine) ? (
+              <button
+                type="button"
+                onClick={() => onRecall(message)}
+                title={t.chat.recall}
+                aria-label={t.chat.recall}
+                className={HOVER_ACTION_CLASS}
+              >
+                <Undo2 className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {message.reactions.length > 0 ? (
@@ -368,7 +501,7 @@ function Bubble({
                 onClick={() => onReact(message, reaction.emoji)}
                 aria-pressed={reacted}
                 className={cn(
-                  'flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors',
+                  'flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-colors mouse:px-2 mouse:py-0.5 mouse:text-xs',
                   reacted
                     ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border bg-background text-muted-foreground hover:bg-muted',
@@ -387,7 +520,7 @@ function Bubble({
             <span className="text-destructive">{isImage ? t.chat.imageFailed : t.chat.failed}</span>
             <button
               type="button"
-              className="underline underline-offset-2"
+              className="-my-2 py-2 underline underline-offset-2"
               onClick={() => onRetry(message)}
             >
               {t.chat.retry}

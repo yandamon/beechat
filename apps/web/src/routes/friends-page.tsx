@@ -4,11 +4,12 @@ import type {
   FriendView,
   UserSearchResult,
 } from '@beechat/shared';
-import { ChevronLeft } from 'lucide-react';
+import { Ban, Ellipsis, UserRoundX } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { ActionSheet } from '@/components/action-sheet';
+import { useConfirm } from '@/components/confirm-dialog';
 import { UserAvatar } from '@/components/user-avatar';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMe } from '@/features/auth/use-auth';
 import {
@@ -25,22 +26,16 @@ import {
 } from '@/features/chat/queries';
 import { t } from '@/i18n/zh-CN';
 import { useDebounce } from '@/lib/use-debounce';
-import { cn } from '@/lib/utils';
 
 export function FriendsPage() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:px-4">
-        <Link
-          to="/"
-          aria-label={t.common.back}
-          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'md:hidden')}
-        >
-          <ChevronLeft />
-        </Link>
-        <h2 className="text-sm font-semibold">{t.friends.title}</h2>
+      <header className="shrink-0 border-b border-border pt-safe md:pt-0">
+        <div className="flex h-14 items-center px-4 md:h-12">
+          <h2 className="text-lg font-semibold md:text-sm">{t.friends.title}</h2>
+        </div>
       </header>
-      <div className="min-h-0 flex-1 space-y-8 overflow-y-auto p-4 md:p-6">
+      <div className="min-h-0 flex-1 space-y-8 overflow-y-auto overscroll-contain p-4 md:p-6">
         <SearchSection />
         <RequestsSection />
         <FriendsSection />
@@ -61,11 +56,16 @@ function SearchSection() {
   return (
     <section>
       <Input
+        type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t.friends.searchPlaceholder}
         aria-label={t.friends.searchPlaceholder}
         autoComplete="off"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="search"
       />
       <p className="mt-2 text-xs text-muted-foreground">{t.friends.searchHint}</p>
       {debounced.trim() ? (
@@ -160,7 +160,7 @@ function SearchResultRow({ user }: { user: UserSearchResult }) {
           <p className="text-xs text-destructive">{sendRequest.error.message}</p>
         ) : null}
       </div>
-      {action}
+      <div className="shrink-0">{action}</div>
     </li>
   );
 }
@@ -267,12 +267,26 @@ function FriendRow({ friend }: { friend: FriendView }) {
   const open = useOpenConversation();
   const remove = useRemoveFriend();
   const block = useBlockUser();
-  const onRemove = () => {
-    if (window.confirm(t.friends.confirmRemove(friend.displayName))) remove.mutate(friend.id);
-  };
-  const onBlock = () => {
-    if (window.confirm(t.friends.confirmBlock(friend.displayName))) block.mutate(friend.id);
-  };
+  const confirm = useConfirm();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const onRemove = () =>
+    confirm.ask({
+      title: t.friends.removeTitle,
+      description: t.friends.confirmRemove(friend.displayName),
+      confirmLabel: t.friends.remove,
+      destructive: true,
+      onConfirm: () => remove.mutate(friend.id),
+    });
+  const onBlock = () =>
+    confirm.ask({
+      title: t.friends.block,
+      description: t.friends.confirmBlock(friend.displayName),
+      confirmLabel: t.friends.block,
+      destructive: true,
+      onConfirm: () => block.mutate(friend.id),
+    });
+
   return (
     <li className="flex items-center gap-3 p-3">
       <UserAvatar
@@ -287,7 +301,7 @@ function FriendRow({ friend }: { friend: FriendView }) {
           @{friend.username} · {friend.online ? t.chat.online : t.chat.offline}
         </p>
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 items-center gap-1 md:gap-2">
         <Button
           size="sm"
           onClick={() => open.mutate(friend.id)}
@@ -295,13 +309,51 @@ function FriendRow({ friend }: { friend: FriendView }) {
         >
           {t.friends.message}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onRemove} disabled={remove.isPending}>
+        {/* 宽屏上删除和拉黑直接摆出来；手机上一行放不下，收进“更多” */}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="hidden md:inline-flex"
+          onClick={onRemove}
+          disabled={remove.isPending}
+        >
           {t.friends.remove}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onBlock} disabled={block.isPending}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="hidden md:inline-flex"
+          onClick={onBlock}
+          disabled={block.isPending}
+        >
           {t.friends.block}
         </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          className="md:hidden"
+          aria-label={t.common.more}
+          onClick={() => setMenuOpen(true)}
+        >
+          <Ellipsis />
+        </Button>
       </div>
+      <ActionSheet
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        title={friend.displayName}
+        actions={[
+          {
+            key: 'remove',
+            label: t.friends.removeTitle,
+            icon: UserRoundX,
+            destructive: true,
+            onSelect: onRemove,
+          },
+          { key: 'block', label: t.friends.block, icon: Ban, destructive: true, onSelect: onBlock },
+        ]}
+      />
+      {confirm.element}
     </li>
   );
 }
@@ -324,6 +376,7 @@ function BlockedSection() {
             <Button
               size="sm"
               variant="outline"
+              className="shrink-0"
               onClick={() => unblock.mutate(user.id)}
               disabled={unblock.isPending}
             >

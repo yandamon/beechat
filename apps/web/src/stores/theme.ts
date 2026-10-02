@@ -8,6 +8,10 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && darkQuery.matches);
   document.documentElement.classList.toggle('dark', dark);
+  // 手机浏览器的地址栏、安装后的状态栏跟着页面背景走；颜色和 index.html 里的首屏脚本一致
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', dark ? '#0a0a0a' : '#ffffff');
 }
 
 interface ThemeState {

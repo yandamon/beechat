@@ -40,7 +40,7 @@ export function ConversationList() {
   }
 
   return (
-    <ul className="min-h-0 flex-1 overflow-y-auto">
+    <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {conversations.data.map((conversation) => (
         <ConversationItem
           key={conversation.id}
@@ -65,7 +65,7 @@ function ConversationItem({
       <Link
         to={`/c/${conversation.id}`}
         className={cn(
-          'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60',
+          'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 active:bg-muted',
           active && 'bg-muted',
         )}
       >
@@ -74,6 +74,7 @@ function ConversationItem({
           seed={peer?.id ?? conversation.id}
           src={peer?.avatarUrl ?? conversation.avatarUrl}
           online={peer?.online}
+          className="size-12 md:size-10"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">

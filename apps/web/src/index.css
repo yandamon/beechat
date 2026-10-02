@@ -4,6 +4,20 @@
 @import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
+/*
+ * mouse：主要输入设备是鼠标或触控板。样式先按触屏写（大一点的点击区域、没有悬停），
+ * 再用 mouse: 收紧成桌面上的紧凑尺寸，悬停才出现的操作也只挂在它上面。
+ * 布局（单栏还是两栏）看的是屏幕宽度，用 md:；控件大小看的是输入方式，用 mouse:。
+ */
+@custom-variant mouse (@media (hover: hover) and (pointer: fine));
+
+/* 刘海、圆角和底部横条让出来的距离；配合 index.html 里的 viewport-fit=cover */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -49,6 +63,8 @@
 }
 
 :root {
+  /* 应用外壳的高度；useAppHeight 会在键盘弹出时把它改成可见区域的高度 */
+  --app-height: 100dvh;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -121,10 +137,30 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
+  html,
+  body,
+  #root {
+    height: 100%;
   }
   html {
     @apply font-sans;
+    /* 横屏时 iOS 会自作主张放大字号 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* 整页不滚动，滚动只发生在列表和消息区里；顺便关掉安卓的下拉刷新和 iOS 的整页回弹 */
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* 去掉双击缩放，点击不再有延迟 */
+  a,
+  button,
+  label,
+  summary,
+  [role='button'] {
+    touch-action: manipulation;
   }
 }
